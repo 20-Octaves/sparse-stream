@@ -2,8 +2,8 @@ print()
 
 import sys, os
 
-from octv_cffi import ffi, lib
 import octv
+from octv import ffi, lib
 
 
 debug = True
@@ -22,17 +22,24 @@ def octv_test(args):
     assert not args, str((args,))
 
     # single-value terminals
-    print(f'octv_test: OCTV_SENTINEL_TYPE: {hex(lib.OCTV_SENTINEL_TYPE)}')
-    print(f'octv_test: OCTV_END_TYPE: {hex(lib.OCTV_END_TYPE)}')
+    print(f'octv_test: OCTV_SENTINEL_TYPE: {hex(lib.OCTV_SENTINEL_TYPE)} {repr(chr(lib.OCTV_SENTINEL_TYPE))}')
+    print(f'octv_test: OCTV_END_TYPE: {hex(lib.OCTV_END_TYPE)} {repr(chr(lib.OCTV_END_TYPE))}')
     print(f'octv_test: OCTV_CONFIG_TYPE: {hex(lib.OCTV_CONFIG_TYPE)}')
     print(f'octv_test: OCTV_MOMENT_TYPE: {hex(lib.OCTV_MOMENT_TYPE)}')
     print(f'octv_test: OCTV_TICK_TYPE: {hex(lib.OCTV_TICK_TYPE)}')
 
-    # FEATURE supports up to 63 values
+    # FEATURE masks, mutually exclusive bits
     print(f'octv_test: OCTV_FEATURE_MASK: {hex(lib.OCTV_FEATURE_MASK)}')
-    print(f'octv_test: OCTV_FEATURE_LOWER: {hex(lib.OCTV_FEATURE_LOWER)}')
-    print(f'octv_test: OCTV_FEATURE_UPPER: {hex(lib.OCTV_FEATURE_UPPER)}')
     print(f'octv_test: OCTV_NOT_FEATURE_MASK: {hex(lib.OCTV_NOT_FEATURE_MASK)}')
+    print(f'octv_test: OCTV_FEATURE_MASK & OCTV_NOT_FEATURE_MASK: {hex(lib.OCTV_FEATURE_MASK & lib.OCTV_NOT_FEATURE_MASK)}')
+    assert (lib.OCTV_FEATURE_MASK & lib.OCTV_NOT_FEATURE_MASK) == 0x00, str((hex(lib.OCTV_FEATURE_MASK & lib.OCTV_NOT_FEATURE_MASK), hex(lib.OCTV_FEATURE_MASK), hex(lib.OCTV_NOT_FEATURE_MASK)))
+    print(f'octv_test: OCTV_FEATURE_MASK | OCTV_NOT_FEATURE_MASK: {hex(lib.OCTV_FEATURE_MASK | lib.OCTV_NOT_FEATURE_MASK)}')
+    assert (lib.OCTV_FEATURE_MASK | lib.OCTV_NOT_FEATURE_MASK) == 0xff, str((hex(lib.OCTV_FEATURE_MASK | lib.OCTV_NOT_FEATURE_MASK), hex(lib.OCTV_FEATURE_MASK), hex(lib.OCTV_NOT_FEATURE_MASK)))
+
+    # FEATURE supports up to 63 values
+    print(f'octv_test: OCTV_FEATURE_0_LOWER: {hex(lib.OCTV_FEATURE_0_LOWER)}')
+    print(f'octv_test: OCTV_FEATURE_3_UPPER: {hex(lib.OCTV_FEATURE_3_UPPER)}')
+    print(f'octv_test: OCTV_FEATURE_3_UPPER - OCTV_FEATURE_0_LOWER: {lib.OCTV_FEATURE_3_UPPER-lib.OCTV_FEATURE_0_LOWER}')
 
     print()
     print(f'octv_test: _octv_prevent_warnings(): {lib._octv_prevent_warnings()}')
@@ -44,7 +51,14 @@ def octv_test(args):
     print(f'label: ffi.sizeof("OctvTick"): {ffi.sizeof("OctvTick")}')
     print(f'label: ffi.sizeof("OctvFeature"): {ffi.sizeof("OctvFeature")}')
 
+    print()
     print(f'label: ffi.sizeof("OctvPayload"): {ffi.sizeof("OctvPayload")}')
+
+    print()
+    print(f'label: ffi.sizeof("OctvFullFeature"): {ffi.sizeof("OctvFullFeature")}')
+    print(f'label: ffi.sizeof("OctvFlatFeature"): {ffi.sizeof("OctvFlatFeature")}')
+    print()
+    print(f'label: ffi.sizeof("OctvParseCallbacks"): {ffi.sizeof("OctvParseCallbacks")}')
 
     print()
 
@@ -60,6 +74,7 @@ def octv_test(args):
 
     print(f'octv_test: octv_parse_file(): {lib.octv_parse_full(file_c, parser)}')
 
+    # called with each full feature
     def flat_feature_cb(feature):
         log(f'flat_feature_cb: feature: {feature}')
         feature_o = octv.flat_feature_object(feature)

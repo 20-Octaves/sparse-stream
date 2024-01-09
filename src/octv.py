@@ -1,5 +1,7 @@
 import sys, os
 
+#sys.path.append('/octv')
+
 from octv_cffi import ffi, lib
 
 
@@ -69,17 +71,27 @@ def octv_error_cb(code):
 
 
 octv_flat_feature_fields = dir(ffi.new('OctvFlatFeature *'))
-log(f'octv_flat_feature_fields: {tuple(octv_flat_feature_fields)}')
+debug and log(f'octv_flat_feature_fields: {tuple(octv_flat_feature_fields)}')
+octv_feature_0_range = range(lib.OCTV_FEATURE_0_LOWER, lib.OCTV_FEATURE_0_UPPER)
+octv_feature_2_range = range(lib.OCTV_FEATURE_2_LOWER, lib.OCTV_FEATURE_2_UPPER)
+octv_feature_3_range = range(lib.OCTV_FEATURE_3_LOWER, lib.OCTV_FEATURE_3_UPPER)
+
 def flat_feature_object(flat_feature):
     ret = O()
+    type = flat_feature.type
     for field in octv_flat_feature_fields:
-        if field.startswith('level_'): continue
-        setattr(ret, field, getattr(flat_feature, field))
+        # set all non-level_* fields, and level_* fields that match the type
+        if (not field.startswith('level_')
+            or field.startswith('level_0') and type in octv_feature_0_range
+            or field.startswith('level_2') and type in octv_feature_2_range
+            or field.startswith('level_3') and type in octv_feature_3_range):
+            setattr(ret, field, getattr(flat_feature, field))
 
     return ret
 
 def parse_flat(file_c, flat_feature_cb):
     assert callable(flat_feature_cb), str((file_c, flat_feature_cb))
+    sys.stdout.flush()
     lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi.NULL)
     res = lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi.new_handle(flat_feature_cb))
     #res = lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi.NULL)
@@ -87,7 +99,7 @@ def parse_flat(file_c, flat_feature_cb):
     return res
 
 
-# hold onto cdata objects until we're done, needed because pointers in structs don't hold on
+# referents holds onto cdata objects until we're done, needed because pointers in cdata structs don't hold on
 referents = list()
 def new(c_type):
     referents.append(ffi.new(c_type))

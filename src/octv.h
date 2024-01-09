@@ -25,15 +25,25 @@
 // TICK type start with 0x70
 #define OCTV_TICK_TYPE  0x70
 
-// FEATURE use a range of type, non-zero, with 6-bit mask 0x3f, so 0x21 thru 0x3f
+// FEATURE is everything less than 0x40 except 0x00
+// use a range of type, non-zero, with 6-bit mask 0x3f, so 0x21 thru 0x3f
 // This allows library clients work with up to 63 distinct FEATURE values without recompiling
 // low-level parsing and dispatch code
 
-// FEATURE type are zero in the top-two bits
-#define OCTV_NOT_FEATURE_MASK  0xd0
+// FEATURE type are zero in the top-two bits, 6 bits for type, but not using 0x00, so 63 types
 #define OCTV_FEATURE_MASK  0x3f
-#define OCTV_FEATURE_LOWER  0x21
-#define OCTV_FEATURE_UPPER  0x40
+#define OCTV_NOT_FEATURE_MASK  0xc0
+
+// these are half-open ranges (UPPER is not in the range)
+// 31 use level_0* anonymous struct fields
+#define OCTV_FEATURE_0_LOWER  0x01
+#define OCTV_FEATURE_0_UPPER  0x20
+// 16 use level_2* anonymous struct fields
+#define OCTV_FEATURE_2_LOWER  0x20
+#define OCTV_FEATURE_2_UPPER  0x30
+// 16 use level_3* anonymous struct fields
+#define OCTV_FEATURE_3_LOWER  0x30
+#define OCTV_FEATURE_3_UPPER  0x40
 
 
 // SENTINEL and END
@@ -79,6 +89,27 @@ typedef struct {
 } OctvTick;
 
 
+typedef union {
+  struct {
+    // type: range(OCTV_FEATURE_0_LOWER, OCTV_FEATURE_0_UPPER)
+    int8_t level_0_int8_0;
+    int8_t level_0_int8_1;
+    int8_t level_0_int8_2;
+    int8_t level_0_int8_3;
+  };
+  struct {
+    // type: range(OCTV_FEATURE_2_LOWER, OCTV_FEATURE_2_UPPER)
+    int8_t level_2_int8_0;
+    int8_t level_2_int8_1;
+    int16_t level_2_int16_0;
+  };
+  struct {
+    // type: range(OCTV_FEATURE_3_LOWER, OCTV_FEATURE_3_UPPER)
+    int16_t level_3_int16_0;
+    int16_t level_3_int16_1;
+  };
+} OctvFeatureLevels;
+
 // FEATURE terminal has multiple "values" based on the value in type which has top two bits 0 and
 // at least one non-zero bit in low 6 bits
 typedef struct {
@@ -87,24 +118,30 @@ typedef struct {
   uint8_t frame_offset;
   uint16_t detector_index;
 
-  // support for type-specific data classes
+  // Support for type-specific data classes
+  // Cannot use a typedef, as per https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1549.pdf
+  // So, this union declaration is repeated in OctvFlatFeature
   union {
     struct {
-      int8_t level_int8_0;
-      int8_t level_int8_1;
-      int8_t level_int8_2;
-      int8_t level_int8_3;
-      //int8_t level_int8[4];
+      // type: range(OCTV_FEATURE_0_LOWER, OCTV_FEATURE_0_UPPER)
+      int8_t level_0_int8_0;
+      int8_t level_0_int8_1;
+      int8_t level_0_int8_2;
+      int8_t level_0_int8_3;
     };
     struct {
-      int16_t level_int16_0;
-      int16_t level_int16_1;
-      //int16_t level_int16[2];
+      // type: range(OCTV_FEATURE_2_LOWER, OCTV_FEATURE_2_UPPER)
+      int8_t level_2_int8_0;
+      int8_t level_2_int8_1;
+      int16_t level_2_int16_0;
     };
     struct {
-      float level_float;
+      // type: range(OCTV_FEATURE_3_LOWER, OCTV_FEATURE_3_UPPER)
+      int16_t level_3_int16_0;
+      int16_t level_3_int16_1;
     };
   };
+  //OctvFeatureLevels levels;
 } OctvFeature;
 
 
@@ -137,7 +174,6 @@ typedef struct {
   uint8_t audio_sample_rate_0;
   uint8_t audio_sample_rate_1;
   uint8_t audio_sample_rate_2;
-  //uint8_t audio_sample_rate[3];
   uint16_t num_detectors;
 
   // MOMENT
@@ -151,28 +187,32 @@ typedef struct {
   // FEATURE
   // support for type-specific data classes
   uint8_t type;
+
+  uint8_t frame_offset;
+  uint16_t detector_index;
   union {
     struct {
-      int8_t level_int8_0;
-      int8_t level_int8_1;
-      int8_t level_int8_2;
-      int8_t level_int8_3;
-      //int8_t level_int8[4];
+      // type: range(OCTV_FEATURE_0_LOWER, OCTV_FEATURE_0_UPPER)
+      int8_t level_0_int8_0;
+      int8_t level_0_int8_1;
+      int8_t level_0_int8_2;
+      int8_t level_0_int8_3;
     };
     struct {
-      int16_t level_int16_0;
-      int16_t level_int16_1;
-      //int16_t level_int16[2];
+      // type: range(OCTV_FEATURE_2_LOWER, OCTV_FEATURE_2_UPPER)
+      int8_t level_2_int8_0;
+      int8_t level_2_int8_1;
+      int16_t level_2_int16_0;
     };
     struct {
-      float level_float;
+      // type: range(OCTV_FEATURE_3_LOWER, OCTV_FEATURE_3_UPPER)
+      int16_t level_3_int16_0;
+      int16_t level_3_int16_1;
     };
   };
 } OctvFlatFeature;
 
 typedef int (*octv_flat_feature_cb_t)(OctvFlatFeature * flat_feature, void * user_data);
-//typedef int (*octv_flat_feature_cb)(OctvFlatFeature * flat_feature);
-
 
 typedef struct {
   int (*config_cb)(OctvConfig * config);
@@ -186,10 +226,6 @@ typedef struct {
 
 
 int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data);
-//int octv_parse_flat(FILE * file, int (*flat_feature_cb)(OctvFlatFeature * flat_feature));
-
-//int octv_parse_flat(FILE * file, octv_flat_feature_cb * flat_feature_cb);
-
 int octv_parse_full(FILE * file, OctvParseCallbacks * callbacks);
 
 int _octv_prevent_warnings();

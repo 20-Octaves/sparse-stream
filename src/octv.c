@@ -24,6 +24,15 @@ int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * 
 //int octv_parse_flat(FILE * file, int (*flat_feature_cb)(OctvFlatFeature * flat_feature, void * user_data), void * user_data) {
   OctvFlatFeature flat_feature = { 0 };
 
+  OctvPayload payload;
+
+  while( 1 ) {
+    int got = fread(&payload, sizeof(payload), 1, file);
+    if( got != 1 ) break;
+    //printf("octv.c: payload.type: %c 0x%2x\n", payload.type, payload.type);
+  }
+  fflush(stdout);
+
   int code = 0;
   if( flat_feature_cb != NULL ) {
     code = flat_feature_cb(&flat_feature, user_data);
@@ -57,7 +66,7 @@ int _octv_prevent_warnings() {
   result += octv_moment.type;
   result += octv_tick.type;
 
-  for( int feature_type = OCTV_FEATURE_LOWER; feature_type < OCTV_FEATURE_UPPER; ++feature_type ) {
+  for( int feature_type = OCTV_FEATURE_0_LOWER; feature_type <= OCTV_FEATURE_3_UPPER; ++feature_type ) {
     const OctvFeature feature = { feature_type };
     result += feature.type;
   }

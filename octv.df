@@ -15,38 +15,40 @@ RUN  true \
       gcc \
       python3-cffi \
       python3-dev \
-      python3-venv \
   && true
 
 
 WORKDIR /octv
 
-# build C-based library
-COPY src/octv.c src/octv.h /octv/
+# object and library base name
+ARG base=octv
+
+# build C-based shared library
+COPY src/octv.c src/octv.h ./
 RUN true \
-  && base=octv \
   && CC_ARGS="-I . -c -pipe -Werror -Wall -Wno-multichar -fpic  -march=native -Ofast" \
   && gcc ${CC_ARGS} ${base}.c \
   && gcc -shared -o lib${base}.so ${base}.o \
-  # have not figured out how prevent runtime import error (the following cp is a hack)
-  && cp lib${base}.so /usr/lib \
+  # add WORKDIR to ld path so that python runtime will find the .so file
+  && pwd | tee /etc/ld.so.conf.d/${base}.conf \
+  && ldconfig \
   && ls -la . \
   && true
 
 # use cffi to build python glue etc
-COPY src/octv_cffi.py /octv/
+COPY src/octv_cffi.py ./
 RUN true \
   && python3 octv_cffi.py \
   && ls -la . \
   && true
 
-# verify
+# quick POC test
 CMD ["python3", "octv_test.py"]
 
-COPY  src/octv.py src/octv_test.py /octv/
+COPY  src/octv.py src/octv_test.py ./
 RUN true \
-  && pwd \
   && which python3 \
+  && pwd \
   && ls -la . \
   && python3 octv_test.py \
   && true

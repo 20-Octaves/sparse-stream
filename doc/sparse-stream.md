@@ -1,7 +1,7 @@
 # Sparse Stream
 
 This document describes the **Sparse Stream** format.
-Sparse Stream is a meta format that emerged from our efforts to formalize, simplify, and improve an existing stream implementation for a generator of high-resoloution, high-dimensinality acoustic features.
+Sparse Stream is a meta format that emerged from our efforts to formalize, simplify, and improve a low-level stream implementation used with a generator of high-resoloution, high-dimensinality acoustic features.
 
 ## Motivation
 

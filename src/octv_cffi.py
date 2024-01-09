@@ -31,13 +31,17 @@ ffibuilder.cdef(header_str + stdlib_str + extern_python_str)
 # produce, and some C source code as a string.  This C code needs
 # to make the declarated functions, types and globals available,
 # so it is often just the "#include".
+# see also: https://setuptools.pypa.io/en/stable/userguide/ext_modules.html#building-extension-modules
 ffibuilder.set_source("octv_cffi",
                       f"""
      #include "{header_filename}"
 """,
+                      library_dirs=['.'],  # library search path, for the linker
                       libraries=['octv'],  # library name, for the linker
                       # extra_link_args hasn't worked, so we cp liboctv.o to /usr/lib
-#                      extra_link_args=['-Wl,-rpath=/octv'],
+                      #runtime_library_dirs=['/octv'],
+                      #extra_link_args=['-Wl,-rpath=/octv'],
+                      #library_dirs=['/octv'],
                       )
 
 if __name__ == "__main__":
