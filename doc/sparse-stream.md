@@ -116,17 +116,17 @@ END
 In practice, for a high-resolution generator, each TICK will correspond to a single audio sample, and dozens of FEATURE are typically emitted for each TICK, and thousands of TICKs appear in each MOMENT.
 The generation of multiple FEATURE points for each TICK sample means that the resulting stream will be (much) larger than the audio input.
 
-## Concrete example
+## Concrete implementation
 
 #### **`Octv, version 1`**
 
 Here are essential details of a C language implementation that conforms to the Sparse Stream meta specification.
 While detailed, and actually implemented at some point, the [examples below](#examples) are non-normative.
 
-Each terminal is an 8 byte structure, and the first byte of each indicates the terminal type.
+Each terminal is an 8 byte structure, and the first byte of the struct indicates the terminal type.
 The remaining bytes provide the value for the terminal.
 A union of all terminal structs (payload), with an anoymous type field, is used for writing and reading.
-Upon read, the anonymous type field is used for dispatch to the logic for the specific terminal type.
+Upon read, the anonymous type field is used for casting and dispatch to the logic for the specific terminal type.
 
 Except where otherwise noted, the descriptions of the terminals are specific to version 1 of Octv.
 
@@ -199,7 +199,7 @@ For version 1, the 24-bit `audio_sample_rate` integer encodes samplerate of the 
 #### Feature generators
 
 The `num_detectors` field indicates the largest size of the sets of detectors implemented in the system, e.g. a maximum array size of 1_440 configured detection modules.
-See `type` and `detector_index` in FEATURE below.
+The value of `detector_index` in `OctvFeature` will always be smaller than `num_detectors`.
 
 
 ### MOMENT
@@ -219,7 +219,7 @@ In practice, we have worked with streams of up to several days duration, but rar
 
 The `audio_frame_index_hi_bytes` field is the high-order 32 bits of the 48-bit frame counter.
 This terminal is emitted whenever the lowest 16 bits of the frame counter are 0.
-E.g. at the start of work on a frame:
+E.g. for a generator of an Octv stream, at the start of work on each frame:
 ```
 ++frame_counter;
 if (!(frame_counter & ((1 << 16) - 1))) {
