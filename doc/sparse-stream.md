@@ -86,7 +86,7 @@ The Sparse Stream language rules specify a stream as a sequence of nested contai
 stream = 1* extent , END .
 extent  = SENTINEL , 1* CONFIG , * moment .
 moment = MOMENT , *  tick .
-tick   = TICK , * FEATURES .
+tick   = TICK , * FEATURE .
 ```
 
 E.g. a terminal stream, with indentation to illustrate the containment structure:
@@ -95,26 +95,26 @@ E.g. a terminal stream, with indentation to illustrate the containment structure
 SENTINEL CONFIG CONFIG
   MOMENT
     TICK
-      FEATURES
-      FEATURES
+      FEATURE
+      FEATURE
     TICK
     TICK
-      FEATURES
+      FEATURE
   MOMENT
     TICK
-      FEATURES
-      FEATURES
+      FEATURE
+      FEATURE
 SENTINEL CONFIG CONFIG
   MOMENT
   MOMENT
     TICK
-      FEATURES
-      FEATURES
+      FEATURE
+      FEATURE
 END
 ```
 
-In practice, for a high-resolution generator, each TICK will correspond to a single audio sample, and dozens of FEATURES are typically emitted for each TICK, and thousands of TICKs appear in each MOMENT.
-The generation of multiple FEATURES points for each TICK sample means that the resulting stream will be (much) larger than the audio input.
+In practice, for a high-resolution generator, each TICK will correspond to a single audio sample, and dozens of FEATURE are typically emitted for each TICK, and thousands of TICKs appear in each MOMENT.
+The generation of multiple FEATURE points for each TICK sample means that the resulting stream will be (much) larger than the audio input.
 
 ## Concrete example
 
