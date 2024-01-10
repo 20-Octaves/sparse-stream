@@ -13,6 +13,8 @@ stdlib_str = """
 """
 
 extern_python_str = """
+  extern "Python" int octv_class_cb(OctvPayload * payload, void * user_data);
+
   extern "Python" int octv_flat_feature_cb(OctvFlatFeature * flat_feature, void * user_data);
 
   extern "Python" int octv_sentinel_cb(OctvDelimiter * sentinel);

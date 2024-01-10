@@ -69,6 +69,18 @@ def octv_test(args):
     with octv.open_file_c('octv_test.py') as file_c:
         print(f'octv_test: octv_parse_file(): {octv.octv_parse_full(file_c, parser)}')
 
+
+    def send(obj):
+        log(f'send: obj: {obj}')
+        return 0
+
+    with octv.open_file_c('test2.octv') as file_c:
+        res = octv.octv_parse_class(file_c, send)
+
+    with octv.open_file_c('test1.octv') as file_c:
+        res = octv.octv_parse_class(file_c, send)
+
+
     # called with each full feature
     def flat_feature_cb(feature):
         log(f'flat_feature_cb: feature: {feature}')

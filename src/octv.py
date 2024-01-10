@@ -72,7 +72,13 @@ class O(object):
         return getattr(self.__dict__, name)
 
 
-octv_struct_name_prefix = 'octv'
+def hexify(value):
+    try:
+        return hex(value)
+    except:
+        return value
+
+
 octv_struct_names = (
     'OctvDelimiter',
     'OctvConfig',
@@ -113,27 +119,6 @@ for  octv_type, (struct_name, terminal_name) in octv_struct_name_by_type.items()
     octv_fields_by_type[octv_type] = item
 
 
-if False:
-    octv_type_fields = O()
-    for struct_name in octv_struct_names:
-        name = struct_name.lower().replace(octv_struct_name_prefix, '')
-        # don't include reserved fields (names start with '_')
-        fields = tuple(field for field in dir(ffi.new(f'{struct_name} *')) if not field.startswith('_'))
-        octv_type_fields[name] = O(
-            name=name,
-            struct_name=struct_name,
-            fields=fields,
-            )
-    log(f'octv_type_fields:')
-    for name, value in octv_type_fields.items():
-        log(f'  {name}:  {value.struct_name}  {value.fields}')
-
-def hexify(value):
-    try:
-        return hex(value)
-    except:
-        return value
-
 def octv_struct_str(terminal):
     item = octv_fields_by_type.get(terminal.type)
     if item is None: return f'type: 0x{terminal.type:02x}'
@@ -148,6 +133,65 @@ def log_terminal(label, terminal):
         log(f'log_terminal: {label}: {octv_struct_str(terminal)}')
     else:
         log(f'log_terminal: {label}: {terminal}')
+
+
+class Octv(object):
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_class_cb(payload, user_data):
+        #log(f'Octv.octv_class_cb: payload: {payload}, user_data: {user_data}')
+        try:
+            octv = Octv.new_octv(payload)
+            return ffi.from_handle(user_data)(octv) if user_data != ffi.NULL else 0
+        except Exception as error:
+            log(f'Octv.octv_class_cb: {type(error).__name__}: error: {error}')
+            return 0
+
+    @staticmethod
+    def new_octv(payload):
+        match struct.pack('<BBBBBBBB', *payload.bytes):
+            case payload_bytes if payload_bytes[0] in OctvFeature.type_c:
+                return OctvFeature(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvTick.type_c):
+                return OctvTick(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvMoment.type_c):
+                return OctvMoment(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvSentinel.type_c):
+                return OctvSentinel(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvConfig.type_c):
+                return OctvConfig(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvEnd.type_c):
+                return OctvEnd(payload_bytes)
+            case _:
+                return payload_bytes
+
+    if False:
+        payload_bytes = struct.pack('<BBBBBBBB', *payload.bytes)
+        match payload_bytes[0]:
+        #match payload.type:
+            case type_c if payload_bytes.startswith(OctvSentinel.type_c):
+            #case type_c if type_c == OctvSentinel.type_c[0]:
+                res = OctvSentinel(payload_bytes)
+                log(f'Octv.new_octv: OctvSentinel: {res}')
+            case type_c if type_c == OctvEnd.type_c[0]:
+                res = OctvEnd(payload_bytes)
+                log(f'Octv.new_octv: OctvEnd: {res}')
+            case type_c if type_c == OctvConfig.type_c[0]:
+                res = OctvConfig(payload_bytes)
+                log(f'Octv.new_octv: OctvConfig: {res}')
+            case type_c if type_c == OctvMoment.type_c[0]:
+                res = OctvMoment(payload_bytes)
+                log(f'Octv.new_octv: OctvMoment: {res}')
+            case type_c if type_c == OctvTick.type_c[0]:
+                res = OctvTick(payload_bytes)
+                log(f'Octv.new_octv: OctvTick: {res}')
+            case type_c if type_c in OctvFeature.type_c:
+                res = OctvFeature(payload_bytes)
+                log(f'Octv.new_octv: OctvFeature: {res}')
+            case _:
+                res = payload_bytes
+        #return res
 
 
 class OctvBase(object):
@@ -410,11 +454,13 @@ class OctvFeature(OctvBase):
         super().__init__(payload)
         self._frame_offset, self._detector_index = self.unpacked
 
+
 @ffi.def_extern()
 def octv_flat_feature_cb(flat_feature, user_data):
     cb = ffi.from_handle(user_data) if user_data != ffi.NULL else None
     log(f'octv_flat_feature_cb: flat_feature {flat_feature}, user_data: {user_data}, cb: {cb}')
     return cb(flat_feature) if cb is not None else 0
+
 
 @ffi.def_extern()
 def octv_sentinel_cb(sentinel):
@@ -489,6 +535,9 @@ def parse_flat(file_c, flat_feature_cb):
 
     return res
 
+def octv_parse_class(file_c, send):
+    res = lib.octv_parse_class(file_c, lib.octv_class_cb, ffi.new_handle(send))
+    return res
 
 # referents holds onto cdata objects until this module goes away, needed because pointers in cdata
 # structs don't hold onto the underlying cdata

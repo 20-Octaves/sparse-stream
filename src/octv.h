@@ -142,6 +142,19 @@ typedef union {
   OctvMoment moment;
   OctvTick tick;
   OctvFeature feature;
+  struct {
+    uint8_t bytes[8];
+    /*
+    uint8_t byte_0;
+    uint8_t byte_1;
+    uint8_t byte_2;
+    uint8_t byte_3;
+    uint8_t byte_4;
+    uint8_t byte_5;
+    uint8_t byte_6;
+    uint8_t byte_7;
+    */
+  };
 } OctvPayload;
 
 
@@ -227,6 +240,7 @@ typedef struct {
 } OctvFlatFeature;
 
 typedef int (*octv_flat_feature_cb_t)(OctvFlatFeature * flat_feature, void * user_data);
+typedef int (*octv_parse_class_cb_t)(OctvPayload * payload, void * user_data);
 
 typedef struct {
   int (*sentinel_cb)(OctvDelimiter * sentinel);
@@ -240,6 +254,9 @@ typedef struct {
 } OctvParseCallbacks;
 
 
+
+int octv_parse_class(FILE * file,  octv_parse_class_cb_t parse_class_cb, void * user_data);
+//int octv_parse_class(FILE * file, int(*parse_class_cb)(OctvPayload *, void *), void * user_data);
 
 int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data);
 int octv_parse_full(FILE * file, OctvParseCallbacks * callbacks);

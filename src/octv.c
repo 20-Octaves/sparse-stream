@@ -20,6 +20,21 @@ static const OctvMoment octv_moment = { OCTV_MOMENT_TYPE, { 0, 0, 0 }, 0 };
 static const OctvTick octv_tick = { OCTV_TICK_TYPE, 0 };
 
 
+int octv_parse_class(FILE * file,  octv_parse_class_cb_t parse_class_cb, void * user_data) {
+  //int octv_parse_class(FILE * file, int(*parse_class_cb)(OctvPayload *, void *), void * user_data) {
+  printf("octv.c:: octv_parse_class():\n");
+  fflush(stdout);
+
+  while( 1 ) {
+    OctvPayload payload;
+    const int got = fread(&payload, sizeof(payload), 1, file);
+    if( got != 1 ) return OCTV_ERROR_EOF;
+
+    const int code = parse_class_cb(&payload, user_data);
+    if( code != 0 ) return code;
+  }
+}
+
 
 int octv_parse_full(FILE * file, OctvParseCallbacks * callbacks) {
   printf("octv.c:: octv_parse_full():\n");
