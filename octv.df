@@ -45,7 +45,7 @@ RUN true \
 # quick POC test
 CMD ["python3", "octv_test.py"]
 
-COPY  src/test1.octv src/test2.octv  ./
+COPY  src/test1.octv src/test2.octv src/test3.octv src/test4.octv  ./
 
 COPY  src/octv.py src/octv_test.py ./
 RUN true \

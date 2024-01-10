@@ -50,8 +50,10 @@
 #define OCTV_ERROR_NULL  0x01
 // payload.type is not handled
 #define OCTV_ERROR_TYPE  0x02
+// value inconsistent with type
+#define OCTV_ERROR_VALUE  0x03
 // incomplete read (eof or error...)
-#define OCTV_ERROR_EOF  0x03
+#define OCTV_ERROR_EOF  0x04
 
 
 // SENTINEL and END
@@ -240,7 +242,7 @@ typedef struct {
 } OctvFlatFeature;
 
 typedef int (*octv_flat_feature_cb_t)(OctvFlatFeature * flat_feature, void * user_data);
-typedef int (*octv_parse_class_cb_t)(OctvPayload * payload, void * user_data);
+typedef int (*octv_parse_class0_cb_t)(OctvPayload * payload, void * user_data);
 
 typedef struct {
   int (*sentinel_cb)(OctvDelimiter * sentinel);
@@ -253,9 +255,31 @@ typedef struct {
   int (*error_cb)(int code, OctvPayload * payload);
 } OctvParseCallbacks;
 
+typedef struct {
+  int (*sentinel_cb)(OctvDelimiter * sentinel, void * user_data);
+  int (*end_cb)(OctvDelimiter * end, void * user_data);
+  int (*config_cb)(OctvConfig * config, void * user_data);
+  int (*moment_cb)(OctvMoment * moment, void * user_data);
+  int (*tick_cb)(OctvTick * tick, void * user_data);
+  int (*feature_cb)(OctvFeature * feature, void * user_data);
+
+  int (*error_cb)(int error_code, OctvPayload * payload, void * user_data);
+
+  void * user_data;
+} OctvParseClassCallbacks;
 
 
-int octv_parse_class(FILE * file,  octv_parse_class_cb_t parse_class_cb, void * user_data);
+typedef struct {
+  int (*flat_feature_cb)(OctvFlatFeature * flat_feature, void * user_data);
+  int (*error_cb)(int error_code, OctvPayload * payload, void * user_data);
+  void * user_data;
+} OctvParseFlatFeatureCallbacks;
+
+
+
+int octv_parse_class(FILE * file, OctvParseClassCallbacks * parse_class_cbs);
+
+int octv_parse_class0(FILE * file,  octv_parse_class0_cb_t parse_class0_cb, void * user_data);
 //int octv_parse_class(FILE * file, int(*parse_class_cb)(OctvPayload *, void *), void * user_data);
 
 int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data);

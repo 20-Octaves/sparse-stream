@@ -70,15 +70,15 @@ def octv_test(args):
         print(f'octv_test: octv_parse_file(): {octv.octv_parse_full(file_c, parser)}')
 
 
-    def send(obj):
-        log(f'send: obj: {obj}')
+    def send_class(obj):
+        log(f'send_class: obj: {obj}')
         return 0
 
     with octv.open_file_c('test2.octv') as file_c:
-        res = octv.octv_parse_class(file_c, send)
+        res = octv.octv_parse_class0(file_c, send_class)
 
     with octv.open_file_c('test1.octv') as file_c:
-        res = octv.octv_parse_class(file_c, send)
+        res = octv.octv_parse_class0(file_c, send_class)
 
 
     # called with each full feature
@@ -98,6 +98,35 @@ def octv_test(args):
             res = octv.octv_parse_full(file_c, parser)
             print(f'octv_test: octv_parse_full(): {res}')
             if res != 0: break
+
+
+
+    # Exercise octv_parse_class()
+
+    # NULL file, OCTV_ERROR_NULL
+    res = octv.octv_parse_class(ffi.NULL, send_class)
+    log(f'octv_test: octv_parse_class: res: {res}')
+
+    # bogus data, invalid type, OCTV_ERROR_TYPE
+    with octv.open_file_c('test1.octv') as file_c:
+        res = octv.octv_parse_class(file_c, send_class)
+    log(f'octv_test: octv_parse_class: res: {res}')
+
+    # bad version value, OCTV_ERROR_VALUE
+    with octv.open_file_c('test4.octv') as file_c:
+        res = octv.octv_parse_class(file_c, send_class)
+    log(f'octv_test: octv_parse_class: res: {res}')
+
+    # truncated Octv, OCTV_ERROR_EOF
+    with octv.open_file_c('test3.octv') as file_c:
+        res = octv.octv_parse_class(file_c, send_class)
+    log(f'octv_test: octv_parse_class: res: {res}')
+
+    # valid Octv
+    with octv.open_file_c('test2.octv') as file_c:
+        res = octv.octv_parse_class(file_c, send_class)
+    log(f'octv_test: octv_parse_class: res: {res}')
+
 
 if main:
     sys.exit(octv_test(sys.argv[1:]))

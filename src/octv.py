@@ -31,16 +31,19 @@ def octv_assert_invariants():
 
 
 @contextlib.contextmanager
-def open_file_c(filename):
+def open_file_c(filename, *, mode=os.O_RDONLY):
     # create and manage a FILE *
     file_c = None
     try:
-        fd = os.open(filename, os.O_RDONLY)
-        file_c = lib.fdopen(fd, 'r'.encode())
-        debug and log(f'open_file_c: filename: {filename}, fd: {fd}, file_c: {file_c}')
+        fd = os.open(filename, mode)
+        sys.stdout.flush()
+        file_c = lib.fdopen(fd, b'r')
+        debug and log(f'open_file_c: open: filename: {filename}, fd: {fd}, file_c: {file_c}')
         yield file_c
     finally:
         if file_c is not None:
+            debug and log(f'open_file_c: close: filename: {filename}, fd: {fd}, file_c: {file_c}')
+            sys.stdout.flush()
             lib.fclose(file_c)
 
 class O(object):
@@ -535,8 +538,15 @@ def parse_flat(file_c, flat_feature_cb):
 
     return res
 
-def octv_parse_class(file_c, send):
-    res = lib.octv_parse_class(file_c, lib.octv_class_cb, ffi.new_handle(send))
+def octv_parse_class(file_c, send_class):
+    sys.stdout.flush()
+    res = lib.octv_parse_class(file_c, ffi.NULL)
+    #res = lib.octv_parse_class(file_c, lib.octv_class_cb, ffi.new_handle(send))
+    return res
+
+def octv_parse_class0(file_c, send):
+    sys.stdout.flush()
+    res = lib.octv_parse_class0(file_c, lib.octv_class_cb, ffi.new_handle(send))
     return res
 
 # referents holds onto cdata objects until this module goes away, needed because pointers in cdata
