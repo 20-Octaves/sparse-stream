@@ -1,6 +1,6 @@
 # Sparse Stream
 
-This document describes the **Sparse Stream** format.
+This document describes the [**Sparse Stream**](../README.md) format.
 
 ## Motivation
 
