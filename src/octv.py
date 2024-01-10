@@ -137,35 +137,322 @@ def log_terminal(label, terminal):
     else:
         log(f'log_terminal: {label}: {terminal}')
 
+"""
+  int (*sentinel_cb)(OctvDelimiter * sentinel, void * user_data);
+  int (*end_cb)(OctvDelimiter * end, void * user_data);
+  int (*config_cb)(OctvConfig * config, void * user_data);
+  int (*moment_cb)(OctvMoment * moment, void * user_data);
+  int (*tick_cb)(OctvTick * tick, void * user_data);
+  int (*feature_cb)(OctvFeature * feature, void * user_data);
 
-class Octv(object):
+  int (*error_cb)(int error_code, OctvPayload * payload, void * user_data);
+"""
+
+if False:
+    @ffi.def_extern()
+    def octv_sentinel_cb(sentinelc, user_data):
+        log(f'octv_sentinel_cb: sentinelc: {sentinelc}, user_data: {user_data}')
+        end = 'fake end'
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        sys.stdout.flush()
+        return send(end) if send is not None else 0
+
+    @ffi.def_extern()
+    def octv_end_cb(endc, user_data):
+        log(f'octv_end_cb: endc: {endc}, user_data: {user_data}')
+        end = 'fake end'
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        sys.stdout.flush()
+        return send(end) if send is not None else 0
+
+    @ffi.def_extern()
+    def octv_config_cb(configc, user_data):
+        log(f'octv_config_cb: configc: {configc}, user_data: {user_data}')
+        config = 'fake config'
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        sys.stdout.flush()
+        return send(config) if send is not None else 0
+
+    @ffi.def_extern()
+    def octv_moment_cb(momentc, user_data):
+        log(f'octv_moment_cb: momentc: {momentc}, user_data: {user_data}')
+        moment = 'fake moment'
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        sys.stdout.flush()
+        return send(moment) if send is not None else 0
+
+if False:
+    @ffi.def_extern()
+    def octv_tick_cb(tickc, user_data):
+        log(f'octv_tick_cb: tickc: {tickc}, user_data: {user_data}')
+        tick = 'fake tick'
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        sys.stdout.flush()
+        return send(tick) if send is not None else 0
+
+@ffi.def_extern()
+def octv_feature_cb(featurec, user_data):
+    log(f'octv_feature_cb: featurec: {featurec}, user_data: {user_data}')
+    feature = 'fake feature'
+    send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+    sys.stdout.flush()
+    return send(feature) if send is not None else 0
+
+@ffi.def_extern()
+def octv_error_cb(error_code, payload, user_data):
+    log(f'octv_error_cb: error_code: {error_code} payload: {payload}, user_data: {user_data}')
+    sys.stdout.flush()
+    send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+    # TODO: how to handle errors, separate error_user_data, or attribute on send
+    sys.stdout.flush()
+    return error_code
+
+
+class OctvBase(object):
+    @property
+    def type(self):
+        return self.self_c.type
+
+    @property
+    def as_json(self):
+        return json.dumps(self.as_dict)
+
+    def __str__(self):
+        return self.as_json
+
+    @classmethod
+    def dict_from(cls, obj_c):
+        res = dict()
+        for field in cls.fields:
+            res[field] = getattr(obj_c, field)
+        return res
+
+    @property
+    def as_dict(self):
+        res =  self.dict_from(self)
+        res.update(typename=type(self).__name__)
+        return res
+
+    def __init__(self, obj_c):
+        self.self_c = new(self.struct_type, self.dict_from(obj_c))
+        log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
+
+    if False:
+        #return
+        dict(
+            typename=type(self).__name__,
+            type=self.type,
+            audio_channel=self.audio_channel,
+            audio_frame_index_lo_bytes=self.audio_frame_index_lo_bytes,
+            audio_sample=self.audio_sample,
+        )
+
+class OctvSentinel(OctvBase):
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_sentinel_cb(sentinel_c, user_data):
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        sentinel = OctvSentinel(sentinel_c)
+        log(f'OctvSentinel.octv_sentinel_cb: sentinel_c: {sentinel_c}, user_data: {user_data}, send: {send}, sentinel: {sentinel}')
+        code = send(sentinel) if callable(send) else 0
+
+        sys.stdout.flush()
+        return code
+
+    struct_type = 'OctvDelimiter *'
+    fields = 'type',
+    #fields = 'type', 'chars', 'signature'
+
+    if False:
+        @property
+        def chars(self):
+            return self.self_c.chars
+
+        @property
+        def signature(self):
+            return self.self_c.signature
+
+class OctvEnd(OctvBase):
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_end_cb(end_c, user_data):
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        end = OctvEnd(end_c)
+        log(f'OctvEnd.octv_end_cb: end_c: {end_c}, user_data: {user_data}, send: {send}, end: {end}')
+        code = send(end) if callable(send) else 0
+
+        sys.stdout.flush()
+        return code
+
+    struct_type = 'OctvDelimiter *'
+    fields = 'type',
+    #fields = 'type', 'chars', 'signature'
+
+    if False:
+        @property
+        def chars(self):
+            return self.self_c.chars
+
+        @property
+        def signature(self):
+            return self.self_c.signature
+
+class OctvConfig(OctvBase):
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_config_cb(config_c, user_data):
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        config = OctvConfig(config_c)
+        log(f'OctvConfig.octv_config_cb: config_c: {config_c}, user_data: {user_data}, send: {send}, config: {config}')
+        code = send(config) if callable(send) else 0
+
+        sys.stdout.flush()
+        return code
+
+    struct_type = 'OctvConfig *'
+    fields = 'type', 'octv_version', 'num_audio_channels', 'audio_sample_rate_0', 'audio_sample_rate_1', 'audio_sample_rate_2', 'num_detectors',
+
+    @property
+    def octv_version(self):
+        return self.self_c.octv_version
+
+    @property
+    def num_audio_channels(self):
+        return self.self_c.num_audio_channels
+
+    @property
+    def audio_sample_rate_0(self):
+        return self.self_c.audio_sample_rate_0
+
+    @property
+    def audio_sample_rate_1(self):
+        return self.self_c.audio_sample_rate_1
+
+    @property
+    def audio_sample_rate_2(self):
+        return self.self_c.audio_sample_rate_2
+
+    @property
+    def num_detectors(self):
+        return self.self_c.num_detectors
+
+class OctvMoment(OctvBase):
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_moment_cb(moment_c, user_data):
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        moment = OctvMoment(moment_c)
+        log(f'OctvMoment.octv_moment_cb: moment_c: {moment_c}, user_data: {user_data}, send: {send}, moment: {moment}')
+        code = send(moment) if callable(send) else 0
+
+        sys.stdout.flush()
+        return code
+
+    struct_type = 'OctvMoment *'
+    fields = 'type', 'audio_frame_index_hi_bytes',
+
+    @property
+    def audio_frame_index_hi_bytes(self):
+        return self.self_c.audio_frame_index_hi_bytes
+
+
+class OctvTick(OctvBase):
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_tick_cb(tick_c, user_data):
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        tick = OctvTick(tick_c)
+        log(f'OctvTick.octv_tick_cb: tick_c: {tick_c}, user_data: {user_data}, send: {send}, tick: {tick}')
+        code = send(tick) if callable(send) else 0
+
+        sys.stdout.flush()
+        return code
+
+    struct_type = 'OctvTick *'
+    fields = 'type', 'audio_channel', 'audio_frame_index_lo_bytes', 'audio_sample'
+
+    if False:
+        @property
+        def type(self):
+            return self.self_c.type
+
+    @property
+    def audio_channel(self):
+        return self.self_c.audio_channel
+
+    @property
+    def audio_frame_index_lo_bytes(self):
+        return self.self_c.audio_frame_index_lo_bytes
+
+    @property
+    def audio_sample(self):
+        return self.self_c.audio_sample
+
+    if False:
+        def __init__(self, obj_c):
+            if False:
+                tick_dict = dict(
+                    type=tick_c.type,
+                    audio_channel=tick_c.audio_channel,
+                    audio_frame_index_lo_bytes=tick_c.audio_frame_index_lo_bytes,
+                    audio_sample=tick_c.audio_sample,
+                    )
+            obj_c_dict = self.dict_from(obj_c)
+            self.self_c = new(self.struct_type, obj_c_dict)
+            log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
+
+
+# TODO: separate class for each of the feature type stucts
+class OctvFeature(OctvBase):
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_feature_cb(feature_c, user_data):
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        feature = OctvFeature(feature_c)
+        log(f'OctvFeature.octv_feature_cb: feature_c: {feature_c}, user_data: {user_data}, send: {send}, feature: {feature}')
+        code = send(feature) if callable(send) else 0
+
+        sys.stdout.flush()
+        return code
+
+    struct_type = 'OctvFeature *'
+    fields = 'type',
+
+
+class OctvX(object):
 
     @ffi.def_extern()
     @staticmethod
     def octv_class_cb(payload, user_data):
-        #log(f'Octv.octv_class_cb: payload: {payload}, user_data: {user_data}')
+        #log(f'OctvX.octv_class_cb: payload: {payload}, user_data: {user_data}')
         try:
-            octv = Octv.new_octv(payload)
+            octv = OctvX.new_octv(payload)
             return ffi.from_handle(user_data)(octv) if user_data != ffi.NULL else 0
         except Exception as error:
-            log(f'Octv.octv_class_cb: {type(error).__name__}: error: {error}')
+            log(f'OctvX.octv_class_cb: {type(error).__name__}: error: {error}')
             return 0
 
     @staticmethod
     def new_octv(payload):
         match struct.pack('<BBBBBBBB', *payload.bytes):
-            case payload_bytes if payload_bytes[0] in OctvFeature.type_c:
-                return OctvFeature(payload_bytes)
-            case payload_bytes if payload_bytes.startswith(OctvTick.type_c):
-                return OctvTick(payload_bytes)
-            case payload_bytes if payload_bytes.startswith(OctvMoment.type_c):
-                return OctvMoment(payload_bytes)
-            case payload_bytes if payload_bytes.startswith(OctvSentinel.type_c):
-                return OctvSentinel(payload_bytes)
-            case payload_bytes if payload_bytes.startswith(OctvConfig.type_c):
-                return OctvConfig(payload_bytes)
-            case payload_bytes if payload_bytes.startswith(OctvEnd.type_c):
-                return OctvEnd(payload_bytes)
+            case payload_bytes if payload_bytes[0] in OctvXFeature.type_c:
+                return OctvXFeature(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvXTick.type_c):
+                return OctvXTick(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvXMoment.type_c):
+                return OctvXMoment(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvXSentinel.type_c):
+                return OctvXSentinel(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvXConfig.type_c):
+                return OctvXConfig(payload_bytes)
+            case payload_bytes if payload_bytes.startswith(OctvXEnd.type_c):
+                return OctvXEnd(payload_bytes)
             case _:
                 return payload_bytes
 
@@ -197,7 +484,7 @@ class Octv(object):
         #return res
 
 
-class OctvBase(object):
+class OctvXBase(object):
     @property
     def type(self):
         return self._payload[0]
@@ -238,42 +525,42 @@ class OctvBase(object):
     def __repr__(self):
         return f'{type(self).__name__}({self.payload})'
 
-class OctvSentinel(OctvBase):
+class OctvXSentinel(OctvXBase):
     r"""
-    >>> o = OctvSentinel(b'Octv\xa4\x6d\xae\xb6')
+    >>> o = OctvXSentinel(b'Octv\xa4\x6d\xae\xb6')
     >>> o
-    OctvSentinel(b'Octv\xa4m\xae\xb6')
+    OctvXSentinel(b'Octv\xa4m\xae\xb6')
     >>> hex(o.type)
     '0x4f'
     >>> str(o)
-    '{"type_name": "OctvSentinel", "type": "0x4f", "payload": "4f_63_74_76_a4_6d_ae_b6"}'
+    '{"type_name": "OctvXSentinel", "type": "0x4f", "payload": "4f_63_74_76_a4_6d_ae_b6"}'
     """
 
     type_c = b'Octv\xa4\x6d\xae\xb6'
 
-class OctvEnd(OctvBase):
+class OctvXEnd(OctvXBase):
     r"""
-    >>> o = OctvEnd(b'End \xa4\x6d\xae\xb6')
+    >>> o = OctvXEnd(b'End \xa4\x6d\xae\xb6')
     >>> o
-    OctvEnd(b'End \xa4m\xae\xb6')
+    OctvXEnd(b'End \xa4m\xae\xb6')
     >>> hex(o.type)
     '0x45'
     >>> str(o)
-    '{"type_name": "OctvEnd", "type": "0x45", "payload": "45_6e_64_20_a4_6d_ae_b6"}'
+    '{"type_name": "OctvXEnd", "type": "0x45", "payload": "45_6e_64_20_a4_6d_ae_b6"}'
     """
 
     type_c = b'End \xa4\x6d\xae\xb6'
 
 
-class OctvConfig(OctvBase):
+class OctvXConfig(OctvXBase):
     r"""
-    >>> o = OctvConfig(b'\x50\x01\x02\x80\xbb\x00\x58\x02')
+    >>> o = OctvXConfig(b'\x50\x01\x02\x80\xbb\x00\x58\x02')
     >>> o
-    OctvConfig(b'P\x01\x02\x80\xbb\x00X\x02')
+    OctvXConfig(b'P\x01\x02\x80\xbb\x00X\x02')
     >>> hex(o.type)
     '0x50'
     >>> str(o)
-    '{"type_name": "OctvConfig", "type": "0x50", "payload": "50_01_02_80_bb_00_58_02", "octv_version": 1, "audio_sample_rate": 48000, "num_detectors": 600}'
+    '{"type_name": "OctvXConfig", "type": "0x50", "payload": "50_01_02_80_bb_00_58_02", "octv_version": 1, "audio_sample_rate": 48000, "num_detectors": 600}'
     """
 
     # includes octv_version
@@ -312,15 +599,15 @@ class OctvConfig(OctvBase):
         self._audio_sample_rate = rate0 | (rate1 << 8) | (rate2 << 16)
 
 
-class OctvMoment(OctvBase):
+class OctvXMoment(OctvXBase):
     r"""
-    >>> o = OctvMoment(b'\x60\x00\x00\x00\x02\x00\x00\x00')
+    >>> o = OctvXMoment(b'\x60\x00\x00\x00\x02\x00\x00\x00')
     >>> o
-    OctvMoment(b'`\x00\x00\x00\x02\x00\x00\x00')
+    OctvXMoment(b'`\x00\x00\x00\x02\x00\x00\x00')
     >>> hex(o.type)
     '0x60'
     >>> str(o)
-    '{"type_name": "OctvMoment", "type": "0x60", "payload": "60_00_00_00_02_00_00_00", "audio_frame_index_hi_bytes": 131072}'
+    '{"type_name": "OctvXMoment", "type": "0x60", "payload": "60_00_00_00_02_00_00_00", "audio_frame_index_hi_bytes": 131072}'
     """
 
     type_c = b'\x60'
@@ -344,15 +631,15 @@ class OctvMoment(OctvBase):
         self._audio_frame_index_hi_bytes <<= 16
 
 
-class OctvTick(OctvBase):
+class OctvXTick(OctvXBase):
     r"""
-    >>> o = OctvTick(b'\x70\x01\x01\x02\x00\x00\x40\x3f')
+    >>> o = OctvXTick(b'\x70\x01\x01\x02\x00\x00\x40\x3f')
     >>> o
-    OctvTick(b'p\x01\x01\x02\x00\x00@?')
+    OctvXTick(b'p\x01\x01\x02\x00\x00@?')
     >>> hex(o.type)
     '0x70'
     >>> str(o)
-    '{"type_name": "OctvTick", "type": "0x70", "payload": "70_01_01_02_00_00_40_3f", "audio_channel": 1, "audio_frame_index_lo_bytes": 513, "audio_sample": 0.75}'
+    '{"type_name": "OctvXTick", "type": "0x70", "payload": "70_01_01_02_00_00_40_3f", "audio_channel": 1, "audio_frame_index_lo_bytes": 513, "audio_sample": 0.75}'
     """
 
     type_c = b'\x70'
@@ -384,20 +671,20 @@ class OctvTick(OctvBase):
         super().__init__(payload)
         self._audio_channel, self._audio_frame_index_lo_bytes, self._audio_sample = self.unpacked
 
-class OctvFeature(OctvBase):
+class OctvXFeature(OctvXBase):
     r"""
-    >>> o = OctvFeature(b'\x03\x0f\x01\x02\x01\x02\x04\x08')
+    >>> o = OctvXFeature(b'\x03\x0f\x01\x02\x01\x02\x04\x08')
     >>> o
-    OctvFeature(b'\x03\x0f\x01\x02\x01\x02\x04\x08')
+    OctvXFeature(b'\x03\x0f\x01\x02\x01\x02\x04\x08')
     >>> hex(o.type)
     '0x3'
     >>> str(o)
-    '{"type_name": "OctvFeature", "type": "0x3", "payload": "03_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_0_int8_0": 1, "level_0_int8_1": 2, "level_0_int8_2": 4, "level_0_int8_3": 8}'
+    '{"type_name": "OctvXFeature", "type": "0x3", "payload": "03_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_0_int8_0": 1, "level_0_int8_1": 2, "level_0_int8_2": 4, "level_0_int8_3": 8}'
 
-    >>> str(OctvFeature(b'\x23\x0f\x01\x02\x01\x02\x04\x08'))
-    '{"type_name": "OctvFeature", "type": "0x23", "payload": "23_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_2_int8_0": 1, "level_2_int8_1": 2, "level_2_int16_0": 2052}'
-    >>> str(OctvFeature(b'\x33\x0f\x01\x02\x01\x02\x04\x08'))
-    '{"type_name": "OctvFeature", "type": "0x33", "payload": "33_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_3_int16_0": 513, "level_3_int16_1": 2052}'
+    >>> str(OctvXFeature(b'\x23\x0f\x01\x02\x01\x02\x04\x08'))
+    '{"type_name": "OctvXFeature", "type": "0x23", "payload": "23_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_2_int8_0": 1, "level_2_int8_1": 2, "level_2_int16_0": 2052}'
+    >>> str(OctvXFeature(b'\x33\x0f\x01\x02\x01\x02\x04\x08'))
+    '{"type_name": "OctvXFeature", "type": "0x33", "payload": "33_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_3_int16_0": 513, "level_3_int16_1": 2052}'
     """
 
     type_c = range(lib.OCTV_FEATURE_0_LOWER, lib.OCTV_FEATURE_3_UPPER)
@@ -466,45 +753,45 @@ def octv_flat_feature_cb(flat_feature, user_data):
 
 
 @ffi.def_extern()
-def octv_sentinel_cb(sentinel):
-    #log(f'octv_sentinel_cb: sentinel {octv_struct_str(sentinel)}')
-    log_terminal('octv_sentinel_cb', sentinel)
+def octv_sentinelX_cb(sentinel):
+    #log(f'octv_sentinelX_cb: sentinel {octv_struct_str(sentinel)}')
+    log_terminal('octv_sentinelX_cb', sentinel)
     return 0
 
 @ffi.def_extern()
-def octv_end_cb(end):
-    #log(f'octv_end_cb: end {end}')
-    log_terminal('octv_end_cb', end)
+def octv_endX_cb(end):
+    #log(f'octv_endX_cb: end {end}')
+    log_terminal('octv_endX_cb', end)
     return 0
 
 @ffi.def_extern()
-def octv_config_cb(config):
-    #log(f'octv_config_cb: config {config}')
-    log_terminal('octv_config_cb', config)
+def octv_configX_cb(config):
+    #log(f'octv_configX_cb: config {config}')
+    log_terminal('octv_configX_cb', config)
     return 0
 
 @ffi.def_extern()
-def octv_moment_cb(moment):
-    #log(f'octv_moment_cb: moment {moment}')
-    log_terminal('octv_moment_cb', moment)
+def octv_momentX_cb(moment):
+    #log(f'octv_momentX_cb: moment {moment}')
+    log_terminal('octv_momentX_cb', moment)
     return 0
 
 @ffi.def_extern()
-def octv_tick_cb(tick):
-    #log(f'octv_tick_cb: tick {tick}')
-    log_terminal('octv_tick_cb', tick)
+def octv_tickX_cb(tick):
+    #log(f'octv_tickX_cb: tick {tick}')
+    log_terminal('octv_tickX_cb', tick)
     return 0
 
 @ffi.def_extern()
-def octv_feature_cb(feature):
-    #log(f'octv_feature_cb: feature: type: {hex(feature.type)} : {octv_struct_str(feature)}')
-    log_terminal('octv_feature_cb', feature)
+def octv_featureX_cb(feature):
+    #log(f'octv_featureX_cb: feature: type: {hex(feature.type)} : {octv_struct_str(feature)}')
+    log_terminal('octv_featureX_cb', feature)
     return 0
 
 @ffi.def_extern()
-def octv_error_cb(code, payload):
-    #log(f'octv_error_cb: code: {code}, payload: {payload}')
-    log_terminal('octv_error_cb', payload)
+def octv_errorX_cb(code, payload):
+    #log(f'octv_errorX_cb: code: {code}, payload: {payload}')
+    log_terminal('octv_errorX_cb', payload)
 
     #return code
     return 0
@@ -538,10 +825,44 @@ def parse_flat(file_c, flat_feature_cb):
 
     return res
 
-def octv_parse_class(file_c, send_class):
+def make_octv_parse_class_callbacks(send):
+    log(f'make_octv_parse_class_callbacks: send: {send}')
+    assert callable(send) or send is None, str((send))
+
+    callbacks = new('OctvParseClassCallbacks *')
+
+    # Yow! structs, (callbacks) only hold the pointer value, not the full handle object
+    referents.append(ffi.new_handle(send))
+    callbacks.user_data = referents[-1]
+
+    if False:
+        log(f'user_data: {callbacks.user_data}')
+
+        blah = ffi.from_handle(callbacks.user_data)
+        log(f'blah: {blah}')
+
+        blah('fake make_octv_parse_class_callbacks')
+
+        #callbacks.user_data = ffi.NULL
+
+    callbacks.sentinel_cb = lib.octv_sentinel_cb
+    callbacks.end_cb = lib.octv_end_cb
+    callbacks.config_cb = lib.octv_config_cb
+    callbacks.moment_cb = lib.octv_moment_cb
+    callbacks.tick_cb = lib.octv_tick_cb
+    callbacks.feature_cb = lib.octv_feature_cb
+    callbacks.error_cb = lib.octv_error_cb
+
+    return callbacks
+
+def octv_parse_class(file_c, send):
+    callbacks = make_octv_parse_class_callbacks(send)
+
     sys.stdout.flush()
-    res = lib.octv_parse_class(file_c, ffi.NULL)
+    res = lib.octv_parse_class(file_c, callbacks)
+    #res = lib.octv_parse_class(file_c, ffi.NULL)
     #res = lib.octv_parse_class(file_c, lib.octv_class_cb, ffi.new_handle(send))
+
     return res
 
 def octv_parse_class0(file_c, send):
@@ -553,21 +874,21 @@ def octv_parse_class0(file_c, send):
 # structs don't hold onto the underlying cdata
 
 referents = list()
-def new(c_type):
-    referents.append(ffi.new(c_type))
+def new(c_type, init=None):
+    referents.append(ffi.new(c_type, init))
     return referents[-1]
 
 def new_parser():
     parser = new('OctvParseCallbacks *')
 
-    parser.sentinel_cb = lib.octv_sentinel_cb
-    parser.end_cb = lib.octv_end_cb
-    parser.config_cb = lib.octv_config_cb
-    parser.moment_cb = lib.octv_moment_cb
-    parser.tick_cb = lib.octv_tick_cb
-    parser.feature_cb = lib.octv_feature_cb
+    parser.sentinel_cb = lib.octv_sentinelX_cb
+    parser.end_cb = lib.octv_endX_cb
+    parser.config_cb = lib.octv_configX_cb
+    parser.moment_cb = lib.octv_momentX_cb
+    parser.tick_cb = lib.octv_tickX_cb
+    parser.feature_cb = lib.octv_featureX_cb
 
-    parser.error_cb = lib.octv_error_cb
+    parser.error_cb = lib.octv_errorX_cb
 
     return parser
 

@@ -70,15 +70,15 @@ def octv_test(args):
         print(f'octv_test: octv_parse_file(): {octv.octv_parse_full(file_c, parser)}')
 
 
-    def send_class(obj):
-        log(f'send_class: obj: {obj}')
+    def send_obj(obj):
+        log(f'send_obj: obj: {obj}')
         return 0
 
     with octv.open_file_c('test2.octv') as file_c:
-        res = octv.octv_parse_class0(file_c, send_class)
+        res = octv.octv_parse_class0(file_c, send_obj)
 
     with octv.open_file_c('test1.octv') as file_c:
-        res = octv.octv_parse_class0(file_c, send_class)
+        res = octv.octv_parse_class0(file_c, send_obj)
 
 
     # called with each full feature
@@ -100,32 +100,44 @@ def octv_test(args):
             if res != 0: break
 
 
+    print()
 
     # Exercise octv_parse_class()
 
     # NULL file, OCTV_ERROR_NULL
-    res = octv.octv_parse_class(ffi.NULL, send_class)
+    res = octv.octv_parse_class(ffi.NULL, send_obj)
     log(f'octv_test: octv_parse_class: res: {res}')
+    print()
 
     # bogus data, invalid type, OCTV_ERROR_TYPE
     with octv.open_file_c('test1.octv') as file_c:
-        res = octv.octv_parse_class(file_c, send_class)
+        res = octv.octv_parse_class(file_c, send_obj)
     log(f'octv_test: octv_parse_class: res: {res}')
+    print()
 
     # bad version value, OCTV_ERROR_VALUE
     with octv.open_file_c('test4.octv') as file_c:
-        res = octv.octv_parse_class(file_c, send_class)
+        res = octv.octv_parse_class(file_c, send_obj)
     log(f'octv_test: octv_parse_class: res: {res}')
+    print()
 
     # truncated Octv, OCTV_ERROR_EOF
     with octv.open_file_c('test3.octv') as file_c:
-        res = octv.octv_parse_class(file_c, send_class)
+        res = octv.octv_parse_class(file_c, send_obj)
     log(f'octv_test: octv_parse_class: res: {res}')
+    print()
 
-    # valid Octv
+    # valid Octv, no callback
     with octv.open_file_c('test2.octv') as file_c:
-        res = octv.octv_parse_class(file_c, send_class)
+        res = octv.octv_parse_class(file_c, None)
     log(f'octv_test: octv_parse_class: res: {res}')
+    print()
+
+    # valid Octv, with callback
+    with octv.open_file_c('test2.octv') as file_c:
+        res = octv.octv_parse_class(file_c, send_obj)
+    log(f'octv_test: octv_parse_class: res: {res}')
+    print()
 
 
 if main:

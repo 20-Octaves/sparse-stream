@@ -21,15 +21,24 @@ static const OctvTick octv_tick = { OCTV_TICK_TYPE, 0 };
 
 
 int octv_parse_class(FILE * file, OctvParseClassCallbacks * parse_class_cbs) {
-  printf("octv.c:: octv_parse_class(): file: %p, parse_class_cbs: %p\n", file, parse_class_cbs);
+  printf("octv.c:: octv_parse_class(): file: %p, parse_class_cbs: %p, user_data: %p\n", file, parse_class_cbs, parse_class_cbs != NULL ? parse_class_cbs->user_data : NULL);
   fflush(stdout);
 
   if( file == NULL ) return OCTV_ERROR_NULL;
+  if( parse_class_cbs == NULL ) return OCTV_ERROR_NULL;
 
   while( 1 ) {
     OctvPayload payload;
+
     const int num_items = fread(&payload, sizeof(payload), 1, file);
-    if( num_items != 1 ) return OCTV_ERROR_EOF;
+    if( num_items != 1 ) {
+      if( parse_class_cbs != NULL ) {
+        // we ignore the code from error_cb
+        parse_class_cbs->error_cb(OCTV_ERROR_EOF, NULL, parse_class_cbs->user_data);
+      }
+      // TODO: fread manpage says eof and error cannot be distinguished without further work...
+      return OCTV_ERROR_EOF;
+    }
 
     // switch statement cases can set code to non-zero
     int code = 0;
