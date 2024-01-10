@@ -6,8 +6,8 @@ import octv
 from octv import ffi, lib
 
 
-debug = True
 debug = False
+debug = True
 
 main = __name__ == '__main__'
 
@@ -30,11 +30,11 @@ def octv_test(args):
 
     # FEATURE masks, mutually exclusive bits
     print(f'octv_test: OCTV_FEATURE_MASK: {hex(lib.OCTV_FEATURE_MASK)}')
-    print(f'octv_test: OCTV_NOT_FEATURE_MASK: {hex(lib.OCTV_NOT_FEATURE_MASK)}')
-    print(f'octv_test: OCTV_FEATURE_MASK & OCTV_NOT_FEATURE_MASK: {hex(lib.OCTV_FEATURE_MASK & lib.OCTV_NOT_FEATURE_MASK)}')
-    assert (lib.OCTV_FEATURE_MASK & lib.OCTV_NOT_FEATURE_MASK) == 0x00, str((hex(lib.OCTV_FEATURE_MASK & lib.OCTV_NOT_FEATURE_MASK), hex(lib.OCTV_FEATURE_MASK), hex(lib.OCTV_NOT_FEATURE_MASK)))
-    print(f'octv_test: OCTV_FEATURE_MASK | OCTV_NOT_FEATURE_MASK: {hex(lib.OCTV_FEATURE_MASK | lib.OCTV_NOT_FEATURE_MASK)}')
-    assert (lib.OCTV_FEATURE_MASK | lib.OCTV_NOT_FEATURE_MASK) == 0xff, str((hex(lib.OCTV_FEATURE_MASK | lib.OCTV_NOT_FEATURE_MASK), hex(lib.OCTV_FEATURE_MASK), hex(lib.OCTV_NOT_FEATURE_MASK)))
+    print(f'octv_test: OCTV_NON_FEATURE_MASK: {hex(lib.OCTV_NON_FEATURE_MASK)}')
+    print(f'octv_test: OCTV_FEATURE_MASK & OCTV_NON_FEATURE_MASK: {hex(lib.OCTV_FEATURE_MASK & lib.OCTV_NON_FEATURE_MASK)}')
+    assert (lib.OCTV_FEATURE_MASK & lib.OCTV_NON_FEATURE_MASK) == 0x00, str((hex(lib.OCTV_FEATURE_MASK & lib.OCTV_NON_FEATURE_MASK), hex(lib.OCTV_FEATURE_MASK), hex(lib.OCTV_NON_FEATURE_MASK)))
+    print(f'octv_test: OCTV_FEATURE_MASK | OCTV_NON_FEATURE_MASK: {hex(lib.OCTV_FEATURE_MASK | lib.OCTV_NON_FEATURE_MASK)}')
+    assert (lib.OCTV_FEATURE_MASK | lib.OCTV_NON_FEATURE_MASK) == 0xff, str((hex(lib.OCTV_FEATURE_MASK | lib.OCTV_NON_FEATURE_MASK), hex(lib.OCTV_FEATURE_MASK), hex(lib.OCTV_NON_FEATURE_MASK)))
 
     # FEATURE supports up to 63 values
     print(f'octv_test: OCTV_FEATURE_0_LOWER: {hex(lib.OCTV_FEATURE_0_LOWER)}')
@@ -62,17 +62,12 @@ def octv_test(args):
 
     print()
 
-    fd = os.open('octv_test.py', os.O_RDONLY)
-    print(f'fd: {fd}')
-
-    file_c = lib.fdopen(fd, 'r'.encode())
-    print(f'file_c: {file_c}')
-
     parser = octv.new_parser()
 
     print(f'octv_test: parser: {parser}')
 
-    print(f'octv_test: octv_parse_file(): {lib.octv_parse_full(file_c, parser)}')
+    with octv.open_file_c('octv_test.py') as file_c:
+        print(f'octv_test: octv_parse_file(): {octv.octv_parse_full(file_c, parser)}')
 
     # called with each full feature
     def flat_feature_cb(feature):
@@ -82,8 +77,15 @@ def octv_test(args):
 
         return 0
 
-    print(f'octv_test: octv_parse_flat(): {octv.parse_flat(file_c, flat_feature_cb)}')
+    with octv.open_file_c('octv_test.py') as file_c:
+        print(f'octv_test: octv_parse_flat(): {octv.parse_flat(file_c, flat_feature_cb)}')
 
+
+    with octv.open_file_c('test1.octv') as file_c:
+        while True:
+            res = octv.octv_parse_full(file_c, parser)
+            print(f'octv_test: octv_parse_full(): {res}')
+            if res != 0: break
 
 if main:
     sys.exit(octv_test(sys.argv[1:]))

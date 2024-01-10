@@ -20,8 +20,82 @@ static const OctvMoment octv_moment = { OCTV_MOMENT_TYPE, { 0, 0, 0 }, 0 };
 static const OctvTick octv_tick = { OCTV_TICK_TYPE, 0 };
 
 
+
+int octv_parse_full(FILE * file, OctvParseCallbacks * callbacks) {
+  printf("octv.c:: octv_parse_full():\n");
+  fflush(stdout);
+
+  OctvPayload payload;
+  int code;
+
+  while( 1 ) {
+    const int got = fread(&payload, sizeof(payload), 1, file);
+    if( got != 1 ) {
+      callbacks->error_cb(OCTV_ERROR_EOF, NULL);
+      return OCTV_ERROR_EOF;
+    }
+
+    //printf("octv.c:: octv_parse_full: payload.type: 0x%02x\n", payload.type);
+    //fflush(stdout);
+
+    if( payload.type & OCTV_NON_FEATURE_MASK ) {
+      // terminals other than FEATURE
+      switch (payload.type) {
+      default:
+        // type is not handled
+        code = callbacks->error_cb(OCTV_ERROR_TYPE, &payload);
+        if( code != 0 ) return code;
+        break;
+
+      case OCTV_END_TYPE:
+        OctvDelimiter end = payload.delimiter;
+        code = callbacks->end_cb(&end);
+        // end of what we consume from stream, regardless of value of code
+        return code;
+
+
+      case OCTV_SENTINEL_TYPE:
+        OctvDelimiter sentinel = payload.delimiter;
+        code = callbacks->sentinel_cb(&sentinel);
+        if( code != 0 ) return code;
+        break;
+
+      case OCTV_CONFIG_TYPE:
+        OctvConfig config = payload.config;
+        code = callbacks->config_cb(&config);
+        if( code != 0 ) return code;
+        break;
+
+      case OCTV_MOMENT_TYPE:
+        OctvMoment moment = payload.moment;
+        code = callbacks->moment_cb(&moment);
+        if( code != 0 ) return code;
+        break;
+
+      case OCTV_TICK_TYPE:
+        OctvTick tick = payload.tick;
+        code = callbacks->tick_cb(&tick);
+        if( code != 0 ) return code;
+        break;
+      }
+    }
+    else if( payload.type & OCTV_FEATURE_MASK ) {
+      // FEATURE
+      OctvFeature feature = payload.feature;
+      code = callbacks->feature_cb(&feature);
+      if( code != 0 ) return code;
+    }
+    else {
+      // payload.type field is 0x00
+      code = callbacks->error_cb(OCTV_ERROR_NULL, &payload);
+      if( code != 0 ) return code;
+    }
+  }
+}
+
 int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data) {
-//int octv_parse_flat(FILE * file, int (*flat_feature_cb)(OctvFlatFeature * flat_feature, void * user_data), void * user_data) {
+  printf("octv.c:: octv_parse_flat():\n");
+
   OctvFlatFeature flat_feature = { 0 };
 
   OctvPayload payload;
@@ -29,7 +103,6 @@ int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * 
   while( 1 ) {
     int got = fread(&payload, sizeof(payload), 1, file);
     if( got != 1 ) break;
-    //printf("octv.c: payload.type: %c 0x%2x\n", payload.type, payload.type);
   }
   fflush(stdout);
 
@@ -37,22 +110,9 @@ int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * 
   if( flat_feature_cb != NULL ) {
     code = flat_feature_cb(&flat_feature, user_data);
   }
+
+  fflush(stdout);
   return code + flat_feature.type;
-}
-
-int octv_parse_full(FILE * file, OctvParseCallbacks * callbacks) {
-  OctvConfig config = octv_config;
-  OctvMoment moment = octv_moment;
-  OctvTick tick = octv_tick;
-  OctvFeature feature = { 0 };
-
-  OctvFullFeature full_feature = {
-    .config = &config,
-    .moment = &moment,
-    .tick = &tick,
-    .feature = &feature
-  };
-  return 0 + full_feature.feature->type;
 }
 
 

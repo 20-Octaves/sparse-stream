@@ -45,10 +45,19 @@ RUN true \
 # quick POC test
 CMD ["python3", "octv_test.py"]
 
+COPY  src/test1.octv ./
+
 COPY  src/octv.py src/octv_test.py ./
 RUN true \
   && which python3 \
   && pwd \
   && ls -la . \
+  && whoami \
+  && set -x \
+  && python3 -m py_compile *.py \
+  && python3 -m doctest *.py \
+  && true
+
+RUN true \
   && python3 octv_test.py \
   && true

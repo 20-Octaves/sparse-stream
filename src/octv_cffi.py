@@ -9,16 +9,21 @@ with open(header_filename, 'rt') as header_file:
 
 stdlib_str = """
      FILE * fdopen(int fildes, const char *mode);
+     int fclose(FILE *stream);
 """
 
 extern_python_str = """
   extern "Python" int octv_flat_feature_cb(OctvFlatFeature * flat_feature, void * user_data);
 
+  extern "Python" int octv_sentinel_cb(OctvDelimiter * sentinel);
+  extern "Python" int octv_end_cb(OctvDelimiter * end);
+
   extern "Python" int octv_config_cb(OctvConfig * config);
   extern "Python" int octv_moment_cb(OctvMoment * moment);
   extern "Python" int octv_tick_cb(OctvTick * tick);
   extern "Python" int octv_feature_cb(OctvFeature * feature);
-  extern "Python" int octv_error_cb(int code);
+
+  extern "Python" int octv_error_cb(int code, OctvPayload * payload);
 """
 
 # cdef() expects a single string declaring the C types, functions and

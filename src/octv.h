@@ -32,7 +32,7 @@
 
 // FEATURE type are zero in the top-two bits, 6 bits for type, but not using 0x00, so 63 types
 #define OCTV_FEATURE_MASK  0x3f
-#define OCTV_NOT_FEATURE_MASK  0xc0
+#define OCTV_NON_FEATURE_MASK  0xc0
 
 // these are half-open ranges (UPPER is not in the range)
 // 31 use level_0* anonymous struct fields
@@ -45,10 +45,18 @@
 #define OCTV_FEATURE_3_LOWER  0x30
 #define OCTV_FEATURE_3_UPPER  0x40
 
+// Parse errors
+// payload.type is 0x00
+#define OCTV_ERROR_NULL  0x01
+// payload.type is not handled
+#define OCTV_ERROR_TYPE  0x02
+// incomplete read (eof or error...)
+#define OCTV_ERROR_EOF  0x03
+
 
 // SENTINEL and END
 typedef struct {
-  char type;
+  uint8_t type;
   char chars[3];
   uint8_t signature[4];
 } OctvDelimiter;
@@ -87,28 +95,6 @@ typedef struct {
   uint16_t audio_frame_index_lo_bytes;
   float audio_sample;
 } OctvTick;
-
-
-typedef union {
-  struct {
-    // type: range(OCTV_FEATURE_0_LOWER, OCTV_FEATURE_0_UPPER)
-    int8_t level_0_int8_0;
-    int8_t level_0_int8_1;
-    int8_t level_0_int8_2;
-    int8_t level_0_int8_3;
-  };
-  struct {
-    // type: range(OCTV_FEATURE_2_LOWER, OCTV_FEATURE_2_UPPER)
-    int8_t level_2_int8_0;
-    int8_t level_2_int8_1;
-    int16_t level_2_int16_0;
-  };
-  struct {
-    // type: range(OCTV_FEATURE_3_LOWER, OCTV_FEATURE_3_UPPER)
-    int16_t level_3_int16_0;
-    int16_t level_3_int16_1;
-  };
-} OctvFeatureLevels;
 
 // FEATURE terminal has multiple "values" based on the value in type which has top two bits 0 and
 // at least one non-zero bit in low 6 bits
@@ -160,11 +146,39 @@ typedef union {
 
 
 typedef struct {
+  OctvDelimiter * sentinel;
+  OctvDelimiter * end;
   OctvConfig * config;
   OctvMoment * moment;
   OctvTick * tick;
   OctvFeature * feature;
 } OctvFullFeature;
+
+
+
+/*
+  grrr, https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1549.pdf
+typedef union {
+  struct {
+    // type: range(OCTV_FEATURE_0_LOWER, OCTV_FEATURE_0_UPPER)
+    int8_t level_0_int8_0;
+    int8_t level_0_int8_1;
+    int8_t level_0_int8_2;
+    int8_t level_0_int8_3;
+  };
+  struct {
+    // type: range(OCTV_FEATURE_2_LOWER, OCTV_FEATURE_2_UPPER)
+    int8_t level_2_int8_0;
+    int8_t level_2_int8_1;
+    int16_t level_2_int16_0;
+  };
+  struct {
+    // type: range(OCTV_FEATURE_3_LOWER, OCTV_FEATURE_3_UPPER)
+    int16_t level_3_int16_0;
+    int16_t level_3_int16_1;
+  };
+} OctvFeatureLevels;
+*/
 
 typedef struct {
   // CONFIG
@@ -215,12 +229,14 @@ typedef struct {
 typedef int (*octv_flat_feature_cb_t)(OctvFlatFeature * flat_feature, void * user_data);
 
 typedef struct {
+  int (*sentinel_cb)(OctvDelimiter * sentinel);
+  int (*end_cb)(OctvDelimiter * end);
   int (*config_cb)(OctvConfig * config);
   int (*moment_cb)(OctvMoment * moment);
   int (*tick_cb)(OctvTick * tick);
   int (*feature_cb)(OctvFeature * feature);
 
-  int (*error_cb)(int code);
+  int (*error_cb)(int code, OctvPayload * payload);
 } OctvParseCallbacks;
 
 

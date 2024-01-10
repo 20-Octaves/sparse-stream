@@ -316,7 +316,7 @@ For high-resolution features, the `frame_offset` encodes a fractional measure of
 The details behind  `type`, `frame_offset`, `detector_index`, and `level_*` depend on the detectors and their configuration.
 The ranges for the FEATURE type value permit low-level parsing (and display) logic to work regardless of the details of the alogrithms being developed.
 
-> In some ways these details are irrelevant anyway due to the ubiquitous use of machine learning to discover patterns in sets of features and to assess feature importance scores -- that is, the importance of these details will depend on the application being learned rather than any descriptions of the semantics.
+> In some ways these details are irrelevant due to the ubiquitous use of machine learning to discover patterns in sets of features and to assess feature importance scores -- that is, the importance of these details will depend on the application being learned rather than any details and descriptions of the semantics.
 
 ## Examples
 
