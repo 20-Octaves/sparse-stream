@@ -320,4 +320,18 @@ The ranges for the FEATURE type value permit low-level parsing (and display) log
 
 ## Examples
 
-TBD
+> This section is a WIP while the code interfaces get settled.
+
+The 64-byte binary file [`src/test2.octv`](../src/test2.octv) contains an instance of each TERMINAL type.
+They are ordered as a valid Sparse Stream instance.
+When parsed to Python objects that render to JSON, the following (vebose) sequence is emitted:
+```
+{"type_name": "OctvSentinel", "type": "0x4f", "payload": "4f_63_74_76_a4_6d_ae_b6"}
+{"type_name": "OctvConfig", "type": "0x50", "payload": "50_01_02_80_bb_00_58_02", "octv_version": 1, "audio_sample_rate": 48000, "num_detectors": 600}
+{"type_name": "OctvMoment", "type": "0x60", "payload": "60_00_00_00_02_00_00_00", "audio_frame_index_hi_bytes": 131072}
+{"type_name": "OctvTick", "type": "0x70", "payload": "70_01_01_02_00_00_40_3f", "audio_channel": 1, "audio_frame_index_lo_bytes": 513, "audio_sample": 0.75}
+{"type_name": "OctvFeature", "type": "0x3", "payload": "03_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_0_int8_0": 1, "level_0_int8_1": 2, "level_0_int8_2": 4, "level_0_int8_3": 8}
+{"type_name": "OctvFeature", "type": "0x23", "payload": "23_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_2_int8_0": 1, "level_2_int8_1": 2, "level_2_int16_0": 2052}
+{"type_name": "OctvFeature", "type": "0x33", "payload": "33_0f_01_02_01_02_04_08", "frame_offset": 15, "detector_index": 513, "level_3_int16_0": 513, "level_3_int16_1": 2052}
+{"type_name": "OctvEnd", "type": "0x45", "payload": "45_6e_64_20_a4_6d_ae_b6"}
+```
