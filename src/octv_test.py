@@ -55,7 +55,7 @@ def octv_test(args):
     print(f'label: ffi.sizeof("OctvPayload"): {ffi.sizeof("OctvPayload")}')
 
     print()
-    print(f'label: ffi.sizeof("OctvFullFeature"): {ffi.sizeof("OctvFullFeature")}')
+    print(f'label: ffi.sizeof("OctvFlatFeatureState"): {ffi.sizeof("OctvFlatFeatureState")}')
     print(f'label: ffi.sizeof("OctvFlatFeature"): {ffi.sizeof("OctvFlatFeature")}')
     print()
     print(f'label: ffi.sizeof("OctvParseCallbacks"): {ffi.sizeof("OctvParseCallbacks")}')

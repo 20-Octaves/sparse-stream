@@ -34,6 +34,7 @@ int octv_check_signature(const OctvDelimiter * delimiter) {
   return delimiter->signature[0] == 0xa4 && delimiter->signature[1] == 0x6d && delimiter->signature[2] == 0xae && delimiter->signature[3] == 0xb6;
 }
 
+// parse a FILE * stream, dispatching to each terminal type, stateless
 int octv_parse_class(FILE * file, const OctvParseClass * parse_class_cbs) {
   printf("octv.c:: octv_parse_class(): file: %p, parse_class_cbs: %p, user_data: %p\n", file, parse_class_cbs, parse_class_cbs != NULL ? parse_class_cbs->user_data : NULL);
   fflush(stdout);
@@ -123,11 +124,114 @@ int octv_parse_class(FILE * file, const OctvParseClass * parse_class_cbs) {
 }
 
 
+
+/*
+// parsing that emits each terminal
+typedef struct {
+  int (*sentinel_cb)(OctvDelimiter * sentinel, void * user_data);
+  int (*end_cb)(OctvDelimiter * end, void * user_data);
+  int (*config_cb)(OctvConfig * config, void * user_data);
+  int (*moment_cb)(OctvMoment * moment, void * user_data);
+  int (*tick_cb)(OctvTick * tick, void * user_data);
+  int (*feature_cb)(OctvFeature * feature, void * user_data);
+
+  octv_error_cb_t error_cb;
+
+  void * user_data;
+} OctvParseClass;
+*/
+
+// TODO: check on state machine transitions
+static
+int config_flat_cb(OctvConfig * config, void * user_data) {
+  OctvFlatFeatureState * flat_feature_state = user_data;
+  *flat_feature_state->config = *config;
+  return 0;
+}
+static
+int moment_flat_cb(OctvMoment * moment, void * user_data) {
+  OctvFlatFeatureState * flat_feature_state = user_data;
+  *flat_feature_state->moment = *moment;
+  return 0;
+}
+static
+int tick_flat_cb(OctvTick * tick, void * user_data) {
+  OctvFlatFeatureState * flat_feature_state = user_data;
+  *flat_feature_state->tick = *tick;
+  return 0;
+}
+static
+int feature_flat_cb(OctvFeature * feature, void * user_data) {
+  OctvFlatFeatureState * flat_feature_state = user_data;
+  *flat_feature_state->feature = *feature;
+
+  // build the flat_feature
+  OctvFlatFeature flat_feature = {
+    // CONFIG
+    .octv_version = flat_feature_state->config->octv_version,
+    .num_audio_channels = flat_feature_state->config->num_audio_channels,
+    .audio_sample_rate_0 = flat_feature_state->config->audio_sample_rate_0,
+    .audio_sample_rate_1 = flat_feature_state->config->audio_sample_rate_1,
+    .audio_sample_rate_2 = flat_feature_state->config->audio_sample_rate_2,
+    .num_detectors = flat_feature_state->config->num_detectors,
+    // MOMENT
+    .audio_frame_index_hi_bytes = flat_feature_state->moment->audio_frame_index_hi_bytes,
+    // TICK
+    .audio_channel = flat_feature_state->tick->audio_channel,
+    .audio_frame_index_lo_bytes = flat_feature_state->tick->audio_frame_index_lo_bytes,
+    .audio_sample = flat_feature_state->tick->audio_sample,
+    // FEATURE
+    .type = flat_feature_state->feature->type,
+    .frame_offset = flat_feature_state->feature->frame_offset,
+    .detector_index = flat_feature_state->feature->detector_index,
+  };
+
+  return flat_feature_state->parse_flat_cbs->flat_feature_cb(&flat_feature, flat_feature_state->parse_flat_cbs->user_data);
+}
+static
+
+int error_flat_cb(int error_code, OctvPayload * payload, void * user_data) {
+  //OctvFlatFeatureState * flat_feature_state = user_data;
+  return error_code;
+}
+
+
+// stateful parsing, emit each feature
 int octv_parse_flat(FILE * file, const OctvParseFlat * parse_flat_cbs) {
   printf("octv.c:: octv_parse_flat(): file: %p, parse_flat_cbs: %p, user_data: %p\n", file, parse_flat_cbs, parse_flat_cbs != NULL ? parse_flat_cbs->user_data : NULL);
   fflush(stdout);
 
   if( file == NULL || parse_flat_cbs == NULL ) return OCTV_ERROR_NULL;
+
+  // state for flat feature work
+  OctvConfig config;
+  OctvMoment moment;
+  OctvTick tick;
+  OctvFeature feature;
+  OctvFlatFeatureState flat_feature_state = {
+    .config = &config,
+    .moment = &moment,
+    .tick = &tick,
+    .feature = &feature,
+    .parse_flat_cbs = parse_flat_cbs
+  };
+
+  // callbacks for low-level class parser
+  OctvParseClass parse_class_cbs = {
+    .sentinel_cb = NULL,
+    .end_cb = NULL,
+    .config_cb = config_flat_cb,
+    .moment_cb = moment_flat_cb,
+    .tick_cb = tick_flat_cb,
+    .feature_cb = feature_flat_cb,
+    .error_cb = error_flat_cb,
+    .user_data = &flat_feature_state
+  };
+
+
+  int code = octv_parse_class(file,  &parse_class_cbs);
+  return code;
+
 
   OctvFlatFeature flat_feature_c;
   flat_feature_c.type = 'H';

@@ -177,8 +177,12 @@ class OctvBase(object):
         res.update(
             # derived fields, not in the obj_c
             typename=type(self).__name__,
-            payload_hex=self.payload_hex,
         )
+        try:
+            res['payload_hex'] = self.payload_hex
+        except AttributeError:
+            pass
+
         return res
 
     def __init__(self, obj_c):
@@ -402,12 +406,32 @@ class OctvFeature_3(OctvFeatureBase):
         return self.self_c.level_3_int16_1
 
 
+# class decorator to add getter properties for each of struct_fields, proxy-ing through self.self_c
+def octv_terminal(cls):
+    for attr_name in cls.struct_fields:
+        def get_attr(self, attr_name=attr_name):
+            return getattr(self.self_c, attr_name)
+        setattr(cls, attr_name, property(get_attr))
+    return cls
+
+@octv_terminal
+class OctvFlatFeature(OctvBase):
+    struct_type = 'OctvFlatFeature *'
+    struct_fields = 'octv_version', 'num_audio_channels', 'audio_sample_rate_0', 'audio_sample_rate_1', 'audio_sample_rate_2', 'num_detectors', 'audio_frame_index_hi_bytes', 'audio_channel', 'audio_frame_index_lo_bytes', 'audio_sample', 'type', 'frame_offset', 'detector_index',
+    fields = struct_fields
+
+    def __init__(self, obj_c):
+        # self_c is an instance of a C struct (cffi) and used for getting most attributes
+        self.self_c = ffi_new(self.struct_type, self.dict_from(obj_c))
+        debug and log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
+
 
 @ffi.def_extern()
-def octv_flat_feature_cb(flat_featurec, user_data_c):
+def octv_flat_feature_cb(flat_feature_c, user_data_c):
     send = ffi.from_handle(user_data_c) if user_data_c != ffi.NULL else None
-    log(f'octv_flat_feature_cb: flat_featurec {flat_featurec}, user_data_c: {user_data_c}, send: {send}')
-    return send(flat_featurec) if send is not None else 0
+    flat_feature = OctvFlatFeature(flat_feature_c)
+    log(f'octv_flat_feature_cb: flat_feature_c {flat_feature_c}, user_data_c: {user_data_c}, send: {send}, flat_feature: {flat_feature}')
+    return send(flat_feature) if send is not None else 0
 
 
 class OctvX(object):

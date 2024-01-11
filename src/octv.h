@@ -153,15 +153,6 @@ typedef union {
 } OctvPayload;
 
 
-typedef struct {
-  OctvDelimiter * sentinel;
-  OctvDelimiter * end;
-  OctvConfig * config;
-  OctvMoment * moment;
-  OctvTick * tick;
-  OctvFeature * feature;
-} OctvFullFeature;
-
 
 
 /*
@@ -272,6 +263,17 @@ typedef struct {
   octv_error_cb_t error_cb;
   void * user_data;
 } OctvParseFlat;
+
+// TODO: add support for Sparse Stream state machine checks
+typedef struct {
+  OctvConfig * config;
+  OctvMoment * moment;
+  OctvTick * tick;
+  OctvFeature * feature;
+
+  // Note: const may affect the struct's field ordering
+  const OctvParseFlat * parse_flat_cbs;
+} OctvFlatFeatureState;
 
 
 /*
