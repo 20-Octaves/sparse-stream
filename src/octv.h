@@ -54,6 +54,8 @@
 #define OCTV_ERROR_VALUE  0x03
 // incomplete read (eof or error...)
 #define OCTV_ERROR_EOF  0x04
+// error from client
+#define OCTV_ERROR_CLIENT  0x05
 
 
 // SENTINEL and END

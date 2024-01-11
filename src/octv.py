@@ -137,80 +137,21 @@ def log_terminal(label, terminal):
     else:
         log(f'log_terminal: {label}: {terminal}')
 
-"""
-  int (*sentinel_cb)(OctvDelimiter * sentinel, void * user_data);
-  int (*end_cb)(OctvDelimiter * end, void * user_data);
-  int (*config_cb)(OctvConfig * config, void * user_data);
-  int (*moment_cb)(OctvMoment * moment, void * user_data);
-  int (*tick_cb)(OctvTick * tick, void * user_data);
-  int (*feature_cb)(OctvFeature * feature, void * user_data);
-
-  int (*error_cb)(int error_code, OctvPayload * payload, void * user_data);
-"""
-
-if False:
-    @ffi.def_extern()
-    def octv_sentinel_cb(sentinelc, user_data):
-        log(f'octv_sentinel_cb: sentinelc: {sentinelc}, user_data: {user_data}')
-        end = 'fake end'
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        sys.stdout.flush()
-        return send(end) if send is not None else 0
-
-    @ffi.def_extern()
-    def octv_end_cb(endc, user_data):
-        log(f'octv_end_cb: endc: {endc}, user_data: {user_data}')
-        end = 'fake end'
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        sys.stdout.flush()
-        return send(end) if send is not None else 0
-
-    @ffi.def_extern()
-    def octv_config_cb(configc, user_data):
-        log(f'octv_config_cb: configc: {configc}, user_data: {user_data}')
-        config = 'fake config'
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        sys.stdout.flush()
-        return send(config) if send is not None else 0
-
-    @ffi.def_extern()
-    def octv_moment_cb(momentc, user_data):
-        log(f'octv_moment_cb: momentc: {momentc}, user_data: {user_data}')
-        moment = 'fake moment'
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        sys.stdout.flush()
-        return send(moment) if send is not None else 0
-
-    if False:
-        @ffi.def_extern()
-        def octv_tick_cb(tickc, user_data):
-            log(f'octv_tick_cb: tickc: {tickc}, user_data: {user_data}')
-            tick = 'fake tick'
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-            sys.stdout.flush()
-            return send(tick) if send is not None else 0
-
-    @ffi.def_extern()
-    def octv_feature_cb(featurec, user_data):
-        log(f'octv_feature_cb: featurec: {featurec}, user_data: {user_data}')
-        feature = 'fake feature'
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        sys.stdout.flush()
-        return send(feature) if send is not None else 0
-
-
 
 class OctvBase(object):
 
     @ffi.def_extern()
     @staticmethod
     def octv_error_cb(error_code, payload, user_data):
-        log(f'octv_error_cb: error_code: {error_code} payload: {payload}, user_data: {user_data}')
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        # TODO: how to handle errors, separate error_user_data, or attribute on send
-        sys.stdout.flush()
-        return error_code
-
+        try:
+            log(f'octv_error_cb: error_code: {error_code} payload: {payload}, user_data: {user_data}')
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            # TODO: how to handle errors, separate error_user_data, or attribute on send
+            # want an exception that is raised once we're back in python land...
+            return error_code
+        finally:
+            # we're about to return into C code, so flush stdout
+            sys.stdout.flush()
 
     @property
     def type(self):
@@ -248,19 +189,37 @@ class OctvBase(object):
         self.payload_hex = '_'.join(f'{byte:02x}' for byte in payload.bytes)
         #log(f'OctvBase.__init__: type: 0x{payload.bytes[0]:02x}, payload_hex: {repr(payload_hex)}')
 
+    @staticmethod
+    def send(terminal, user_data):
+        try:
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            code = send(terminal) if callable(send) else 0
+            return code
+        except Exception as error:
+            # TODO: signal error back to python, e.g. via field in user_data?
+            log(f'OctvBase.send: error: {type(error).__name__}: error: {error}')
+            return lib.OCTV_ERROR_CLIENT
+
 
 class OctvSentinel(OctvBase):
 
     @ffi.def_extern()
+    # classmethod would be preferable, but it doesn't play well with ffi.def_extern
+    #   @ffi.def_extern()  TypeError: expected a callable object, not classmethod
     @staticmethod
     def octv_sentinel_cb(sentinel_c, user_data):
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        sentinel = OctvSentinel(sentinel_c)
-        log(f'OctvSentinel.octv_sentinel_cb: sentinel_c: {sentinel_c}, user_data: {user_data}, send: {send}, sentinel: {sentinel}')
-        code = send(sentinel) if callable(send) else 0
+        try:
+            return OctvBase.send(OctvSentinel(sentinel_c), user_data)
+        finally:
+            sys.stdout.flush()
 
-        sys.stdout.flush()
-        return code
+        if False:
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            log(f'OctvSentinel.octv_sentinel_cb: sentinel_c: {sentinel_c}, user_data: {user_data}, send: {send}, sentinel: {sentinel}')
+            code = send(sentinel) if callable(send) else 0
+
+            sys.stdout.flush()
+            return code
 
     struct_type = 'OctvDelimiter *'
     fields = 'type',
@@ -280,13 +239,19 @@ class OctvEnd(OctvBase):
     @ffi.def_extern()
     @staticmethod
     def octv_end_cb(end_c, user_data):
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        end = OctvEnd(end_c)
-        log(f'OctvEnd.octv_end_cb: end_c: {end_c}, user_data: {user_data}, send: {send}, end: {end}')
-        code = send(end) if callable(send) else 0
+        try:
+            return OctvBase.send(OctvEnd(end_c), user_data)
+        finally:
+            sys.stdout.flush()
 
-        sys.stdout.flush()
-        return code
+        if False:
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            end = OctvEnd(end_c)
+            log(f'OctvEnd.octv_end_cb: end_c: {end_c}, user_data: {user_data}, send: {send}, end: {end}')
+            code = send(end) if callable(send) else 0
+
+            sys.stdout.flush()
+            return code
 
     struct_type = 'OctvDelimiter *'
     fields = 'type',
@@ -306,13 +271,19 @@ class OctvConfig(OctvBase):
     @ffi.def_extern()
     @staticmethod
     def octv_config_cb(config_c, user_data):
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        config = OctvConfig(config_c)
-        log(f'OctvConfig.octv_config_cb: config_c: {config_c}, user_data: {user_data}, send: {send}, config: {config}')
-        code = send(config) if callable(send) else 0
+        try:
+            return OctvBase.send(OctvConfig(config_c), user_data)
+        finally:
+            sys.stdout.flush()
 
-        sys.stdout.flush()
-        return code
+        if False:
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            config = OctvConfig(config_c)
+            log(f'OctvConfig.octv_config_cb: config_c: {config_c}, user_data: {user_data}, send: {send}, config: {config}')
+            code = send(config) if callable(send) else 0
+
+            sys.stdout.flush()
+            return code
 
     struct_type = 'OctvConfig *'
     fields = 'type', 'octv_version', 'num_audio_channels', 'audio_sample_rate_0', 'audio_sample_rate_1', 'audio_sample_rate_2', 'num_detectors',
@@ -346,13 +317,19 @@ class OctvMoment(OctvBase):
     @ffi.def_extern()
     @staticmethod
     def octv_moment_cb(moment_c, user_data):
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        moment = OctvMoment(moment_c)
-        log(f'OctvMoment.octv_moment_cb: moment_c: {moment_c}, user_data: {user_data}, send: {send}, moment: {moment}')
-        code = send(moment) if callable(send) else 0
+        try:
+            return OctvBase.send(OctvMoment(moment_c), user_data)
+        finally:
+            sys.stdout.flush()
 
-        sys.stdout.flush()
-        return code
+        if False:
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            moment = OctvMoment(moment_c)
+            log(f'OctvMoment.octv_moment_cb: moment_c: {moment_c}, user_data: {user_data}, send: {send}, moment: {moment}')
+            code = send(moment) if callable(send) else 0
+
+            sys.stdout.flush()
+            return code
 
     struct_type = 'OctvMoment *'
     fields = 'type', 'audio_frame_index_hi_bytes',
@@ -367,13 +344,19 @@ class OctvTick(OctvBase):
     @ffi.def_extern()
     @staticmethod
     def octv_tick_cb(tick_c, user_data):
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        tick = OctvTick(tick_c)
-        log(f'OctvTick.octv_tick_cb: tick_c: {tick_c}, user_data: {user_data}, send: {send}, tick: {tick}')
-        code = send(tick) if callable(send) else 0
+        try:
+            return OctvBase.send(OctvTick(tick_c), user_data)
+        finally:
+            sys.stdout.flush()
 
-        sys.stdout.flush()
-        return code
+        if False:
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            tick = OctvTick(tick_c)
+            log(f'OctvTick.octv_tick_cb: tick_c: {tick_c}, user_data: {user_data}, send: {send}, tick: {tick}')
+            code = send(tick) if callable(send) else 0
+
+            sys.stdout.flush()
+            return code
 
     struct_type = 'OctvTick *'
     fields = 'type', 'audio_channel', 'audio_frame_index_lo_bytes', 'audio_sample'
@@ -399,23 +382,43 @@ class OctvTick(OctvBase):
 # TODO: separate class for each of the feature sub-types
 class OctvFeatureBase(OctvBase):
 
+    level_0 = range(lib.OCTV_FEATURE_0_LOWER, lib.OCTV_FEATURE_0_UPPER)
+    level_2 = range(lib.OCTV_FEATURE_2_LOWER, lib.OCTV_FEATURE_2_UPPER)
+    level_3 = range(lib.OCTV_FEATURE_3_LOWER, lib.OCTV_FEATURE_3_UPPER)
+
     @ffi.def_extern()
     @staticmethod
     def octv_feature_cb(feature_c, user_data):
-        if lib.OCTV_FEATURE_0_LOWER <= feature_c.type < lib.OCTV_FEATURE_0_UPPER:
-            feature = OctvFeature_0(feature_c)
-        elif lib.OCTV_FEATURE_2_LOWER <= feature_c.type < lib.OCTV_FEATURE_2_UPPER:
-            feature = OctvFeature_2(feature_c)
-        elif lib.OCTV_FEATURE_3_LOWER <= feature_c.type < lib.OCTV_FEATURE_3_UPPER:
-            feature = OctvFeature_3(feature_c)
-        else:
-            raise AssertionError(f'unhandled feature type: {feature_c.type}  0x{feature_c.type:02x}')
-        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        log(f'OctvFeatureBase.octv_feature_cb: feature_c: {feature_c}, user_data: {user_data}, send: {send}, feature: {feature}')
-        code = send(feature) if callable(send) else 0
+        try:
+            feature_type = feature_c.type
+            if feature_type in OctvFeatureBase.level_0:
+                cls = OctvFeature_0
+            elif feature_type in OctvFeatureBase.level_2:
+                cls = OctvFeature_2
+            elif feature_type in OctvFeatureBase.level_3:
+                cls = OctvFeature_3
+            else:
+                raise AssertionError(f'unhandled feature type: {feature_type}  0x{feature_type:02x}')
 
-        sys.stdout.flush()
-        return code
+            return OctvBase.send(cls(feature_c), user_data)
+        finally:
+            sys.stdout.flush()
+
+        if False:
+            if lib.OCTV_FEATURE_0_LOWER <= feature_c.type < lib.OCTV_FEATURE_0_UPPER:
+                feature = OctvFeature_0(feature_c)
+            elif lib.OCTV_FEATURE_2_LOWER <= feature_c.type < lib.OCTV_FEATURE_2_UPPER:
+                feature = OctvFeature_2(feature_c)
+            elif lib.OCTV_FEATURE_3_LOWER <= feature_c.type < lib.OCTV_FEATURE_3_UPPER:
+                feature = OctvFeature_3(feature_c)
+            else:
+                raise AssertionError(f'unhandled feature type: {feature_c.type}  0x{feature_c.type:02x}')
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            log(f'OctvFeatureBase.octv_feature_cb: feature_c: {feature_c}, user_data: {user_data}, send: {send}, feature: {feature}')
+            code = send(feature) if callable(send) else 0
+
+            sys.stdout.flush()
+            return code
 
     struct_type = 'OctvFeature *'
     fields = 'type', 'frame_offset', 'detector_index',
