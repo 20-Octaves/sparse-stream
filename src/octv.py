@@ -181,34 +181,37 @@ if False:
         sys.stdout.flush()
         return send(moment) if send is not None else 0
 
-if False:
+    if False:
+        @ffi.def_extern()
+        def octv_tick_cb(tickc, user_data):
+            log(f'octv_tick_cb: tickc: {tickc}, user_data: {user_data}')
+            tick = 'fake tick'
+            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            sys.stdout.flush()
+            return send(tick) if send is not None else 0
+
     @ffi.def_extern()
-    def octv_tick_cb(tickc, user_data):
-        log(f'octv_tick_cb: tickc: {tickc}, user_data: {user_data}')
-        tick = 'fake tick'
+    def octv_feature_cb(featurec, user_data):
+        log(f'octv_feature_cb: featurec: {featurec}, user_data: {user_data}')
+        feature = 'fake feature'
         send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
         sys.stdout.flush()
-        return send(tick) if send is not None else 0
+        return send(feature) if send is not None else 0
 
-@ffi.def_extern()
-def octv_feature_cb(featurec, user_data):
-    log(f'octv_feature_cb: featurec: {featurec}, user_data: {user_data}')
-    feature = 'fake feature'
-    send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-    sys.stdout.flush()
-    return send(feature) if send is not None else 0
-
-@ffi.def_extern()
-def octv_error_cb(error_code, payload, user_data):
-    log(f'octv_error_cb: error_code: {error_code} payload: {payload}, user_data: {user_data}')
-    sys.stdout.flush()
-    send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-    # TODO: how to handle errors, separate error_user_data, or attribute on send
-    sys.stdout.flush()
-    return error_code
 
 
 class OctvBase(object):
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_error_cb(error_code, payload, user_data):
+        log(f'octv_error_cb: error_code: {error_code} payload: {payload}, user_data: {user_data}')
+        send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+        # TODO: how to handle errors, separate error_user_data, or attribute on send
+        sys.stdout.flush()
+        return error_code
+
+
     @property
     def type(self):
         return self.self_c.type
@@ -230,22 +233,21 @@ class OctvBase(object):
     @property
     def as_dict(self):
         res =  self.dict_from(self)
-        res.update(typename=type(self).__name__)
+        res.update(
+            # derived fields, not in the obj_c
+            typename=type(self).__name__,
+            payload_bytes=self.payload_bytes,
+        )
         return res
 
     def __init__(self, obj_c):
-        self.self_c = new(self.struct_type, self.dict_from(obj_c))
+        # self_c is an instance of a C struct and used for getting most attributes
+        self.self_c = ffi_new(self.struct_type, self.dict_from(obj_c))
         log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
+        payload = ffi.cast('OctvPayload *', obj_c)
+        self.payload_bytes = '_'.join(f'{item:02x}' for item in payload.bytes)
+        #log(f'OctvBase.__init__: type: 0x{payload.bytes[0]:02x}, payload_bytes: {repr(payload_bytes)}')
 
-    if False:
-        #return
-        dict(
-            typename=type(self).__name__,
-            type=self.type,
-            audio_channel=self.audio_channel,
-            audio_frame_index_lo_bytes=self.audio_frame_index_lo_bytes,
-            audio_sample=self.audio_sample,
-        )
 
 class OctvSentinel(OctvBase):
 
@@ -393,36 +395,87 @@ class OctvTick(OctvBase):
     def audio_sample(self):
         return self.self_c.audio_sample
 
-    if False:
-        def __init__(self, obj_c):
-            if False:
-                tick_dict = dict(
-                    type=tick_c.type,
-                    audio_channel=tick_c.audio_channel,
-                    audio_frame_index_lo_bytes=tick_c.audio_frame_index_lo_bytes,
-                    audio_sample=tick_c.audio_sample,
-                    )
-            obj_c_dict = self.dict_from(obj_c)
-            self.self_c = new(self.struct_type, obj_c_dict)
-            log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
 
-
-# TODO: separate class for each of the feature type stucts
-class OctvFeature(OctvBase):
+# TODO: separate class for each of the feature sub-types
+class OctvFeatureBase(OctvBase):
 
     @ffi.def_extern()
     @staticmethod
     def octv_feature_cb(feature_c, user_data):
+        if lib.OCTV_FEATURE_0_LOWER <= feature_c.type < lib.OCTV_FEATURE_0_UPPER:
+            feature = OctvFeature_0(feature_c)
+        elif lib.OCTV_FEATURE_2_LOWER <= feature_c.type < lib.OCTV_FEATURE_2_UPPER:
+            feature = OctvFeature_2(feature_c)
+        elif lib.OCTV_FEATURE_3_LOWER <= feature_c.type < lib.OCTV_FEATURE_3_UPPER:
+            feature = OctvFeature_3(feature_c)
+        else:
+            raise AssertionError(f'unhandled feature type: {feature_c.type}  0x{feature_c.type:02x}')
         send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-        feature = OctvFeature(feature_c)
-        log(f'OctvFeature.octv_feature_cb: feature_c: {feature_c}, user_data: {user_data}, send: {send}, feature: {feature}')
+        log(f'OctvFeatureBase.octv_feature_cb: feature_c: {feature_c}, user_data: {user_data}, send: {send}, feature: {feature}')
         code = send(feature) if callable(send) else 0
 
         sys.stdout.flush()
         return code
 
     struct_type = 'OctvFeature *'
-    fields = 'type',
+    fields = 'type', 'frame_offset', 'detector_index',
+
+    @property
+    def frame_offset(self):
+        return self.self_c.frame_offset
+
+    @property
+    def detector_index(self):
+        return self.self_c.detector_index
+
+class OctvFeature_0(OctvFeatureBase):
+
+    fields = OctvFeatureBase.fields + ('level_0_int8_0', 'level_0_int8_1', 'level_0_int8_2', 'level_0_int8_3')
+
+    @property
+    def level_0_int8_0(self):
+        return self.self_c.level_0_int8_0
+
+    @property
+    def level_0_int8_1(self):
+        return self.self_c.level_0_int8_1
+
+    @property
+    def level_0_int8_2(self):
+        return self.self_c.level_0_int8_2
+
+    @property
+    def level_0_int8_3(self):
+        return self.self_c.level_0_int8_3
+
+class OctvFeature_2(OctvFeatureBase):
+
+    fields = OctvFeatureBase.fields + ('level_2_int8_0', 'level_2_int8_1', 'level_2_int16_0')
+
+    @property
+    def level_2_int8_0(self):
+        return self.self_c.level_2_int8_0
+
+    @property
+    def level_2_int8_1(self):
+        return self.self_c.level_2_int8_1
+
+    @property
+    def level_2_int16_0(self):
+        return self.self_c.level_2_int16_0
+
+class OctvFeature_3(OctvFeatureBase):
+
+    fields = OctvFeatureBase.fields + ('level_3_int16_0', 'level_3_int16_1')
+
+    @property
+    def level_3_int16_0(self):
+        return self.self_c.level_3_int16_0
+
+    @property
+    def level_3_int16_1(self):
+        return self.self_c.level_3_int16_1
+
 
 
 class OctvX(object):
@@ -820,7 +873,7 @@ def parse_flat(file_c, flat_feature_cb):
     assert callable(flat_feature_cb), str((file_c, flat_feature_cb))
     sys.stdout.flush()
     lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi.NULL)
-    res = lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi.new_handle(flat_feature_cb))
+    res = lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi_new_handle(flat_feature_cb))
     #res = lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi.NULL)
 
     return res
@@ -829,11 +882,13 @@ def make_octv_parse_class_callbacks(send):
     log(f'make_octv_parse_class_callbacks: send: {send}')
     assert callable(send) or send is None, str((send))
 
-    callbacks = new('OctvParseClassCallbacks *')
+    callbacks = ffi_new('OctvParseClassCallbacks *')
 
-    # Yow! structs, (callbacks) only hold the pointer value, not the full handle object
-    referents.append(ffi.new_handle(send))
-    callbacks.user_data = referents[-1]
+    callbacks.user_data = ffi_new_handle(send)
+    if False:
+        # Yow! structs, (callbacks) only hold the pointer value, not the full handle object
+        referents.append(ffi.new_handle(send))
+        callbacks.user_data = referents[-1]
 
     if False:
         log(f'user_data: {callbacks.user_data}')
@@ -867,19 +922,22 @@ def octv_parse_class(file_c, send):
 
 def octv_parse_class0(file_c, send):
     sys.stdout.flush()
-    res = lib.octv_parse_class0(file_c, lib.octv_class_cb, ffi.new_handle(send))
+    res = lib.octv_parse_class0(file_c, lib.octv_class_cb, ffi_new_handle(send))
     return res
 
 # referents holds onto cdata objects until this module goes away, needed because pointers in cdata
 # structs don't hold onto the underlying cdata
 
 referents = list()
-def new(c_type, init=None):
+def ffi_new(c_type, init=None):
     referents.append(ffi.new(c_type, init))
+    return referents[-1]
+def ffi_new_handle(obj):
+    referents.append(ffi.new_handle(obj))
     return referents[-1]
 
 def new_parser():
-    parser = new('OctvParseCallbacks *')
+    parser = ffi_new('OctvParseCallbacks *')
 
     parser.sentinel_cb = lib.octv_sentinelX_cb
     parser.end_cb = lib.octv_endX_cb
