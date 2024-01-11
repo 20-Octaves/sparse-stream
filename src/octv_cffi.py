@@ -13,7 +13,7 @@ stdlib_str = """
 """
 
 extern_python_str = """
-  // see octv.h OctvParseClassCallbacks
+  // see octv.h OctvParseClass
   extern "Python" int octv_sentinel_cb(OctvDelimiter * sentinelc, void * user_data);
   extern "Python" int octv_end_cb(OctvDelimiter * endc, void * user_data);
   extern "Python" int octv_config_cb(OctvConfig * configc, void * user_data);

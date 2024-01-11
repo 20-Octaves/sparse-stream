@@ -236,7 +236,7 @@ class OctvBase(object):
         res.update(
             # derived fields, not in the obj_c
             typename=type(self).__name__,
-            payload_bytes=self.payload_bytes,
+            payload_hex=self.payload_hex,
         )
         return res
 
@@ -245,8 +245,8 @@ class OctvBase(object):
         self.self_c = ffi_new(self.struct_type, self.dict_from(obj_c))
         log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
         payload = ffi.cast('OctvPayload *', obj_c)
-        self.payload_bytes = '_'.join(f'{item:02x}' for item in payload.bytes)
-        #log(f'OctvBase.__init__: type: 0x{payload.bytes[0]:02x}, payload_bytes: {repr(payload_bytes)}')
+        self.payload_hex = '_'.join(f'{byte:02x}' for byte in payload.bytes)
+        #log(f'OctvBase.__init__: type: 0x{payload.bytes[0]:02x}, payload_hex: {repr(payload_hex)}')
 
 
 class OctvSentinel(OctvBase):
@@ -869,12 +869,11 @@ def flat_feature_object(flat_feature):
 
     return ret
 
-def parse_flat(file_c, flat_feature_cb):
+def parse_flat0(file_c, flat_feature_cb):
     assert callable(flat_feature_cb), str((file_c, flat_feature_cb))
     sys.stdout.flush()
-    lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi.NULL)
-    res = lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi_new_handle(flat_feature_cb))
-    #res = lib.octv_parse_flat(file_c, lib.octv_flat_feature_cb, ffi.NULL)
+    lib.octv_parse_flat0(file_c, lib.octv_flat_feature_cb, ffi.NULL)
+    res = lib.octv_parse_flat0(file_c, lib.octv_flat_feature_cb, ffi_new_handle(flat_feature_cb))
 
     return res
 
@@ -882,7 +881,7 @@ def make_octv_parse_class_callbacks(send):
     log(f'make_octv_parse_class_callbacks: send: {send}')
     assert callable(send) or send is None, str((send))
 
-    callbacks = ffi_new('OctvParseClassCallbacks *')
+    callbacks = ffi_new('OctvParseClass *')
 
     callbacks.user_data = ffi_new_handle(send)
     if False:

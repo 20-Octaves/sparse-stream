@@ -20,7 +20,7 @@ static const OctvMoment octv_moment = { OCTV_MOMENT_TYPE, { 0, 0, 0 }, 0 };
 static const OctvTick octv_tick = { OCTV_TICK_TYPE, 0 };
 
 
-int octv_parse_class(FILE * file, OctvParseClassCallbacks * parse_class_cbs) {
+int octv_parse_class(FILE * file, OctvParseClass * parse_class_cbs) {
   printf("octv.c:: octv_parse_class(): file: %p, parse_class_cbs: %p, user_data: %p\n", file, parse_class_cbs, parse_class_cbs != NULL ? parse_class_cbs->user_data : NULL);
   fflush(stdout);
 
@@ -142,7 +142,14 @@ int octv_parse_class(FILE * file, OctvParseClassCallbacks * parse_class_cbs) {
 }
 
 
+int octv_parse_flat(FILE * file, OctvParseFlat * parse_flat_cbs) {
+  printf("octv.c:: octv_parse_flat(): file: %p, parse_flat_cbs: %p, user_data: %p\n", file, parse_flat_cbs, parse_flat_cbs != NULL ? parse_flat_cbs->user_data : NULL);
+  fflush(stdout);
 
+  if( file == NULL || parse_flat_cbs == NULL ) return OCTV_ERROR_NULL;
+
+  return 0;
+}
 
 int octv_parse_class0(FILE * file,  octv_parse_class0_cb_t parse_class0_cb, void * user_data) {
   //int octv_parse_class(FILE * file, int(*parse_class_cb)(OctvPayload *, void *), void * user_data) {
@@ -232,8 +239,8 @@ int octv_parse_full(FILE * file, OctvParseCallbacks * callbacks) {
   }
 }
 
-int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data) {
-  printf("octv.c:: octv_parse_flat():\n");
+int octv_parse_flat0(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data) {
+  printf("octv.c:: octv_parse_flat0():\n");
 
   OctvFlatFeature flat_feature = { 0 };
 

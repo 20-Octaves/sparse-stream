@@ -133,30 +133,21 @@ typedef struct {
 } OctvFeature;
 
 
-// OctvPayload holds any terminal and has the terminal's type field in the anonymous struct
+// OctvPayload holds any terminal, and it the terminal's type field in an anonymous struct, and also the bytes[8] array
 typedef union {
   struct {
     uint8_t type;
     uint8_t _reserved[7];
   };
+  struct {
+    uint8_t bytes[8];
+  };
+
   OctvDelimiter delimiter;
   OctvConfig config;
   OctvMoment moment;
   OctvTick tick;
   OctvFeature feature;
-  struct {
-    uint8_t bytes[8];
-    /*
-    uint8_t byte_0;
-    uint8_t byte_1;
-    uint8_t byte_2;
-    uint8_t byte_3;
-    uint8_t byte_4;
-    uint8_t byte_5;
-    uint8_t byte_6;
-    uint8_t byte_7;
-    */
-  };
 } OctvPayload;
 
 
@@ -241,7 +232,6 @@ typedef struct {
   };
 } OctvFlatFeature;
 
-typedef int (*octv_flat_feature_cb_t)(OctvFlatFeature * flat_feature, void * user_data);
 typedef int (*octv_parse_class0_cb_t)(OctvPayload * payload, void * user_data);
 
 typedef struct {
@@ -255,6 +245,12 @@ typedef struct {
   int (*error_cb)(int code, OctvPayload * payload);
 } OctvParseCallbacks;
 
+
+typedef int (*octv_error_cb_t)(int error_code, OctvPayload * payload, void * user_data);
+typedef int (*octv_flat_feature_cb_t)(OctvFlatFeature * flat_feature, void * user_data);
+
+
+// parsing that emits each terminal
 typedef struct {
   int (*sentinel_cb)(OctvDelimiter * sentinel, void * user_data);
   int (*end_cb)(OctvDelimiter * end, void * user_data);
@@ -263,26 +259,38 @@ typedef struct {
   int (*tick_cb)(OctvTick * tick, void * user_data);
   int (*feature_cb)(OctvFeature * feature, void * user_data);
 
-  int (*error_cb)(int error_code, OctvPayload * payload, void * user_data);
+  octv_error_cb_t error_cb;
 
   void * user_data;
-} OctvParseClassCallbacks;
+} OctvParseClass;
 
-
+// parsing that emits features with fields from all tiers
 typedef struct {
-  int (*flat_feature_cb)(OctvFlatFeature * flat_feature, void * user_data);
-  int (*error_cb)(int error_code, OctvPayload * payload, void * user_data);
+  octv_flat_feature_cb_t flat_feature_cb;
+  octv_error_cb_t error_cb;
+  void * user_data;
+} OctvParseFlat;
+
+
+/*
+typedef struct {
+  octv_flat_feature_cb_t flat_feature_cb;
+  //int (*flat_feature_cb)(OctvFlatFeature * flat_feature, void * user_data);
+  octv_error_cb_t error_cb;
+  //int (*error_cb)(int error_code, OctvPayload * payload, void * user_data);
   void * user_data;
 } OctvParseFlatFeatureCallbacks;
+*/
 
 
 
-int octv_parse_class(FILE * file, OctvParseClassCallbacks * parse_class_cbs);
+int octv_parse_class(FILE * file, OctvParseClass * parse_class_cbs);
+int octv_parse_flat(FILE * file, OctvParseFlat * parse_flat_cbs);
 
 int octv_parse_class0(FILE * file,  octv_parse_class0_cb_t parse_class0_cb, void * user_data);
+int octv_parse_flat0(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data);
 //int octv_parse_class(FILE * file, int(*parse_class_cb)(OctvPayload *, void *), void * user_data);
 
-int octv_parse_flat(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data);
 int octv_parse_full(FILE * file, OctvParseCallbacks * callbacks);
 
 int _octv_prevent_warnings();

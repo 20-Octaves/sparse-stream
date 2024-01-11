@@ -90,7 +90,7 @@ def octv_test(args):
         return 0
 
     with octv.open_file_c('octv_test.py') as file_c:
-        print(f'octv_test: octv_parse_flat(): {octv.parse_flat(file_c, flat_feature_cb)}')
+        print(f'octv_test: octv_parse_flat0(): {octv.parse_flat0(file_c, flat_feature_cb)}')
 
 
     with octv.open_file_c('test1.octv') as file_c:
@@ -139,6 +139,8 @@ def octv_test(args):
     log(f'octv_test: octv_parse_class: res: {res}')
     print()
 
+
+    print('OK')
 
 if main:
     sys.exit(octv_test(sys.argv[1:]))
