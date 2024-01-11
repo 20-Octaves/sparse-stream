@@ -32,7 +32,7 @@ def octv_assert_invariants():
 
 @contextlib.contextmanager
 def open_file_c(filename, *, mode=os.O_RDONLY):
-    # create and manage a FILE *
+    # open and manage a FILE *
     file_c = None
     try:
         fd = os.open(filename, mode)
@@ -403,6 +403,13 @@ class OctvFeature_3(OctvFeatureBase):
 
 
 
+@ffi.def_extern()
+def octv_flat_feature_cb(flat_featurec, user_data):
+    send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+    log(f'octv_flat_feature_cb: flat_featurec {flat_featurec}, user_data: {user_data}, send: {send}')
+    return send(flat_featurec) if send is not None else 0
+
+
 class OctvX(object):
 
     @ffi.def_extern()
@@ -724,9 +731,9 @@ class OctvXFeature(OctvXBase):
 
 
 @ffi.def_extern()
-def octv_flat_feature_cb(flat_feature, user_data):
+def octv_flat_feature_cb0(flat_feature, user_data):
     cb = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-    log(f'octv_flat_feature_cb: flat_feature {flat_feature}, user_data: {user_data}, cb: {cb}')
+    log(f'octv_flat_feature_cb0: flat_feature {flat_feature}, user_data: {user_data}, cb: {cb}')
     return cb(flat_feature) if cb is not None else 0
 
 
@@ -797,8 +804,8 @@ def flat_feature_object(flat_feature):
 def parse_flat0(file_c, flat_feature_cb):
     assert callable(flat_feature_cb), str((file_c, flat_feature_cb))
     sys.stdout.flush()
-    lib.octv_parse_flat0(file_c, lib.octv_flat_feature_cb, ffi.NULL)
-    res = lib.octv_parse_flat0(file_c, lib.octv_flat_feature_cb, ffi_new_handle(flat_feature_cb))
+    lib.octv_parse_flat0(file_c, lib.octv_flat_feature_cb0, ffi.NULL)
+    res = lib.octv_parse_flat0(file_c, lib.octv_flat_feature_cb0, ffi_new_handle(flat_feature_cb))
 
     return res
 
@@ -834,6 +841,17 @@ def make_octv_parse_class_callbacks(send):
 
     return callbacks
 
+def make_octv_parse_flat_callbacks(send):
+    debug and log(f'make_octv_parse_flat_callbacks: send: {send}')
+    assert callable(send) or send is None, str((send))
+
+    callbacks = ffi_new('OctvParseFlat *')
+
+    callbacks.user_data = ffi_new_handle(send)
+    callbacks.flat_feature_cb = lib.octv_flat_feature_cb
+
+    return callbacks
+
 def octv_parse_class(file_c, send):
     callbacks = make_octv_parse_class_callbacks(send)
 
@@ -841,6 +859,14 @@ def octv_parse_class(file_c, send):
     res = lib.octv_parse_class(file_c, callbacks)
     #res = lib.octv_parse_class(file_c, ffi.NULL)
     #res = lib.octv_parse_class(file_c, lib.octv_class_cb, ffi.new_handle(send))
+
+    return res
+
+def octv_parse_flat(file_c, send):
+    callbacks = make_octv_parse_flat_callbacks(send)
+
+    sys.stdout.flush()
+    res = lib.octv_parse_flat(file_c, callbacks)
 
     return res
 

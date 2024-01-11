@@ -286,8 +286,8 @@ typedef struct {
 
 
 
-int octv_parse_class(FILE * file, OctvParseClass * parse_class_cbs);
-int octv_parse_flat(FILE * file, OctvParseFlat * parse_flat_cbs);
+int octv_parse_class(FILE * file, const OctvParseClass * parse_class_cbs);
+int octv_parse_flat(FILE * file, const OctvParseFlat * parse_flat_cbs);
 
 int octv_parse_class0(FILE * file,  octv_parse_class0_cb_t parse_class0_cb, void * user_data);
 int octv_parse_flat0(FILE * file, octv_flat_feature_cb_t flat_feature_cb, void * user_data);

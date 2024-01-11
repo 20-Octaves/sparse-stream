@@ -14,18 +14,21 @@ stdlib_str = """
 
 extern_python_str = """
   // see octv.h OctvParseClass
+
+  extern "Python" int octv_error_cb(int error_code, OctvPayload * errorc, void * user_data);
+
   extern "Python" int octv_sentinel_cb(OctvDelimiter * sentinelc, void * user_data);
   extern "Python" int octv_end_cb(OctvDelimiter * endc, void * user_data);
   extern "Python" int octv_config_cb(OctvConfig * configc, void * user_data);
   extern "Python" int octv_moment_cb(OctvMoment * momentc, void * user_data);
   extern "Python" int octv_tick_cb(OctvTick * tickc, void * user_data);
   extern "Python" int octv_feature_cb(OctvFeature * featurec, void * user_data);
-  extern "Python" int octv_error_cb(int error_code, OctvPayload * errorc, void * user_data);
 
+  extern "Python" int octv_flat_feature_cb(OctvFlatFeature * featurec, void * user_data);
 
   extern "Python" int octv_class_cb(OctvPayload * payload, void * user_data);
 
-  extern "Python" int octv_flat_feature_cb(OctvFlatFeature * flat_feature, void * user_data);
+  extern "Python" int octv_flat_feature_cb0(OctvFlatFeature * flat_feature, void * user_data);
 
   extern "Python" int octv_sentinelX_cb(OctvDelimiter * sentinel);
   extern "Python" int octv_endX_cb(OctvDelimiter * end);

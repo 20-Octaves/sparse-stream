@@ -71,7 +71,7 @@ def octv_test(args):
 
 
     def send_obj(obj):
-        log(f'send_obj: obj: {obj}')
+        log(f'send_obj: obj: {obj} : {("type: " + hex(obj.type)) if hasattr(obj, "type") else ""}')
         return 0
 
     with octv.open_file_c('test2.octv') as file_c:
@@ -139,6 +139,13 @@ def octv_test(args):
     log(f'octv_test: octv_parse_class: res: {res}')
     print()
 
+
+    # Exercise octv_parse_flat()
+
+    with octv.open_file_c('test2.octv') as file_c:
+        res = octv.octv_parse_flat(file_c, send_obj)
+    log(f'octv_test: octv_parse_flat: res: {res}')
+    print()
 
     print('OK')
 
