@@ -142,11 +142,11 @@ class OctvBase(object):
 
     @ffi.def_extern()
     @staticmethod
-    def octv_error_cb(error_code, payload, user_data):
+    def octv_error_cb(error_code, payload, user_data_c):
         try:
-            log(f'octv_error_cb: error_code: {error_code} payload: {payload}, user_data: {user_data}')
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-            # TODO: how to handle errors, separate error_user_data, or attribute on send
+            log(f'octv_error_cb: error_code: {error_code} payload: {payload}, user_data_c: {user_data_c}')
+            send = ffi.from_handle(user_data_c) if user_data_c != ffi.NULL else None
+            # TODO: how to handle errors, separate error_user_data_c, or attribute on send
             # want an exception that is raised once we're back in python land...
             return error_code
         finally:
@@ -182,21 +182,21 @@ class OctvBase(object):
         return res
 
     def __init__(self, obj_c):
-        # self_c is an instance of a C struct and used for getting most attributes
+        # self_c is an instance of a C struct (cffi) and used for getting most attributes
         self.self_c = ffi_new(self.struct_type, self.dict_from(obj_c))
         debug and log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
         payload = ffi.cast('OctvPayload *', obj_c)
         self.payload_hex = '_'.join(f'{byte:02x}' for byte in payload.bytes)
 
     @staticmethod
-    def send(terminal, user_data):
+    def send(terminal, user_data_c):
         try:
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
+            send = ffi.from_handle(user_data_c) if user_data_c != ffi.NULL else None
             code = send(terminal) if callable(send) else 0
             return code
         except Exception as error:
-            # TODO: signal error back to python, e.g. via field in user_data?
-            # needs to happen in cb function
+            # TODO: signal error back to python, e.g. via field in user_data_c?
+            # needs to happen in cb function so that this try/except is superfluous
             log(f'OctvBase.send: error: {type(error).__name__}: error: {error}')
             return lib.OCTV_ERROR_CLIENT
 
@@ -207,9 +207,9 @@ class OctvSentinel(OctvBase):
     # classmethod would be preferable, but it doesn't play well with ffi.def_extern
     #   @ffi.def_extern()  TypeError: expected a callable object, not classmethod
     @staticmethod
-    def octv_sentinel_cb(sentinel_c, user_data):
+    def octv_sentinel_cb(sentinel_c, user_data_c):
         try:
-            return OctvBase.send(OctvSentinel(sentinel_c), user_data)
+            return OctvBase.send(OctvSentinel(sentinel_c), user_data_c)
         finally:
             sys.stdout.flush()
 
@@ -220,9 +220,9 @@ class OctvEnd(OctvBase):
 
     @ffi.def_extern()
     @staticmethod
-    def octv_end_cb(end_c, user_data):
+    def octv_end_cb(end_c, user_data_c):
         try:
-            return OctvBase.send(OctvEnd(end_c), user_data)
+            return OctvBase.send(OctvEnd(end_c), user_data_c)
         finally:
             sys.stdout.flush()
 
@@ -233,9 +233,9 @@ class OctvConfig(OctvBase):
 
     @ffi.def_extern()
     @staticmethod
-    def octv_config_cb(config_c, user_data):
+    def octv_config_cb(config_c, user_data_c):
         try:
-            return OctvBase.send(OctvConfig(config_c), user_data)
+            return OctvBase.send(OctvConfig(config_c), user_data_c)
         finally:
             sys.stdout.flush()
 
@@ -270,9 +270,9 @@ class OctvMoment(OctvBase):
 
     @ffi.def_extern()
     @staticmethod
-    def octv_moment_cb(moment_c, user_data):
+    def octv_moment_cb(moment_c, user_data_c):
         try:
-            return OctvBase.send(OctvMoment(moment_c), user_data)
+            return OctvBase.send(OctvMoment(moment_c), user_data_c)
         finally:
             sys.stdout.flush()
 
@@ -288,9 +288,9 @@ class OctvTick(OctvBase):
 
     @ffi.def_extern()
     @staticmethod
-    def octv_tick_cb(tick_c, user_data):
+    def octv_tick_cb(tick_c, user_data_c):
         try:
-            return OctvBase.send(OctvTick(tick_c), user_data)
+            return OctvBase.send(OctvTick(tick_c), user_data_c)
         finally:
             sys.stdout.flush()
 
@@ -324,7 +324,7 @@ class OctvFeatureBase(OctvBase):
 
     @ffi.def_extern()
     @staticmethod
-    def octv_feature_cb(feature_c, user_data):
+    def octv_feature_cb(feature_c, user_data_c):
         try:
             feature_type = feature_c.type
             if feature_type in OctvFeatureBase.level_0:
@@ -336,7 +336,7 @@ class OctvFeatureBase(OctvBase):
             else:
                 raise AssertionError(f'unhandled feature type: {feature_type}  0x{feature_type:02x}')
 
-            return OctvBase.send(cls(feature_c), user_data)
+            return OctvBase.send(cls(feature_c), user_data_c)
         finally:
             sys.stdout.flush()
 
@@ -404,9 +404,9 @@ class OctvFeature_3(OctvFeatureBase):
 
 
 @ffi.def_extern()
-def octv_flat_feature_cb(flat_featurec, user_data):
-    send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-    log(f'octv_flat_feature_cb: flat_featurec {flat_featurec}, user_data: {user_data}, send: {send}')
+def octv_flat_feature_cb(flat_featurec, user_data_c):
+    send = ffi.from_handle(user_data_c) if user_data_c != ffi.NULL else None
+    log(f'octv_flat_feature_cb: flat_featurec {flat_featurec}, user_data_c: {user_data_c}, send: {send}')
     return send(flat_featurec) if send is not None else 0
 
 
