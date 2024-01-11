@@ -184,10 +184,9 @@ class OctvBase(object):
     def __init__(self, obj_c):
         # self_c is an instance of a C struct and used for getting most attributes
         self.self_c = ffi_new(self.struct_type, self.dict_from(obj_c))
-        log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
+        debug and log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
         payload = ffi.cast('OctvPayload *', obj_c)
         self.payload_hex = '_'.join(f'{byte:02x}' for byte in payload.bytes)
-        #log(f'OctvBase.__init__: type: 0x{payload.bytes[0]:02x}, payload_hex: {repr(payload_hex)}')
 
     @staticmethod
     def send(terminal, user_data):
@@ -197,6 +196,7 @@ class OctvBase(object):
             return code
         except Exception as error:
             # TODO: signal error back to python, e.g. via field in user_data?
+            # needs to happen in cb function
             log(f'OctvBase.send: error: {type(error).__name__}: error: {error}')
             return lib.OCTV_ERROR_CLIENT
 
@@ -213,26 +213,8 @@ class OctvSentinel(OctvBase):
         finally:
             sys.stdout.flush()
 
-        if False:
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-            log(f'OctvSentinel.octv_sentinel_cb: sentinel_c: {sentinel_c}, user_data: {user_data}, send: {send}, sentinel: {sentinel}')
-            code = send(sentinel) if callable(send) else 0
-
-            sys.stdout.flush()
-            return code
-
     struct_type = 'OctvDelimiter *'
     fields = 'type',
-    #fields = 'type', 'chars', 'signature'
-
-    if False:
-        @property
-        def chars(self):
-            return self.self_c.chars
-
-        @property
-        def signature(self):
-            return self.self_c.signature
 
 class OctvEnd(OctvBase):
 
@@ -244,27 +226,8 @@ class OctvEnd(OctvBase):
         finally:
             sys.stdout.flush()
 
-        if False:
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-            end = OctvEnd(end_c)
-            log(f'OctvEnd.octv_end_cb: end_c: {end_c}, user_data: {user_data}, send: {send}, end: {end}')
-            code = send(end) if callable(send) else 0
-
-            sys.stdout.flush()
-            return code
-
     struct_type = 'OctvDelimiter *'
     fields = 'type',
-    #fields = 'type', 'chars', 'signature'
-
-    if False:
-        @property
-        def chars(self):
-            return self.self_c.chars
-
-        @property
-        def signature(self):
-            return self.self_c.signature
 
 class OctvConfig(OctvBase):
 
@@ -275,15 +238,6 @@ class OctvConfig(OctvBase):
             return OctvBase.send(OctvConfig(config_c), user_data)
         finally:
             sys.stdout.flush()
-
-        if False:
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-            config = OctvConfig(config_c)
-            log(f'OctvConfig.octv_config_cb: config_c: {config_c}, user_data: {user_data}, send: {send}, config: {config}')
-            code = send(config) if callable(send) else 0
-
-            sys.stdout.flush()
-            return code
 
     struct_type = 'OctvConfig *'
     fields = 'type', 'octv_version', 'num_audio_channels', 'audio_sample_rate_0', 'audio_sample_rate_1', 'audio_sample_rate_2', 'num_detectors',
@@ -322,15 +276,6 @@ class OctvMoment(OctvBase):
         finally:
             sys.stdout.flush()
 
-        if False:
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-            moment = OctvMoment(moment_c)
-            log(f'OctvMoment.octv_moment_cb: moment_c: {moment_c}, user_data: {user_data}, send: {send}, moment: {moment}')
-            code = send(moment) if callable(send) else 0
-
-            sys.stdout.flush()
-            return code
-
     struct_type = 'OctvMoment *'
     fields = 'type', 'audio_frame_index_hi_bytes',
 
@@ -348,15 +293,6 @@ class OctvTick(OctvBase):
             return OctvBase.send(OctvTick(tick_c), user_data)
         finally:
             sys.stdout.flush()
-
-        if False:
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-            tick = OctvTick(tick_c)
-            log(f'OctvTick.octv_tick_cb: tick_c: {tick_c}, user_data: {user_data}, send: {send}, tick: {tick}')
-            code = send(tick) if callable(send) else 0
-
-            sys.stdout.flush()
-            return code
 
     struct_type = 'OctvTick *'
     fields = 'type', 'audio_channel', 'audio_frame_index_lo_bytes', 'audio_sample'
@@ -404,22 +340,6 @@ class OctvFeatureBase(OctvBase):
         finally:
             sys.stdout.flush()
 
-        if False:
-            if lib.OCTV_FEATURE_0_LOWER <= feature_c.type < lib.OCTV_FEATURE_0_UPPER:
-                feature = OctvFeature_0(feature_c)
-            elif lib.OCTV_FEATURE_2_LOWER <= feature_c.type < lib.OCTV_FEATURE_2_UPPER:
-                feature = OctvFeature_2(feature_c)
-            elif lib.OCTV_FEATURE_3_LOWER <= feature_c.type < lib.OCTV_FEATURE_3_UPPER:
-                feature = OctvFeature_3(feature_c)
-            else:
-                raise AssertionError(f'unhandled feature type: {feature_c.type}  0x{feature_c.type:02x}')
-            send = ffi.from_handle(user_data) if user_data != ffi.NULL else None
-            log(f'OctvFeatureBase.octv_feature_cb: feature_c: {feature_c}, user_data: {user_data}, send: {send}, feature: {feature}')
-            code = send(feature) if callable(send) else 0
-
-            sys.stdout.flush()
-            return code
-
     struct_type = 'OctvFeature *'
     fields = 'type', 'frame_offset', 'detector_index',
 
@@ -430,6 +350,8 @@ class OctvFeatureBase(OctvBase):
     @property
     def detector_index(self):
         return self.self_c.detector_index
+
+
 
 class OctvFeature_0(OctvFeatureBase):
 
@@ -881,7 +803,7 @@ def parse_flat0(file_c, flat_feature_cb):
     return res
 
 def make_octv_parse_class_callbacks(send):
-    log(f'make_octv_parse_class_callbacks: send: {send}')
+    debug and log(f'make_octv_parse_class_callbacks: send: {send}')
     assert callable(send) or send is None, str((send))
 
     callbacks = ffi_new('OctvParseClass *')
