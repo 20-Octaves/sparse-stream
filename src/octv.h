@@ -225,6 +225,29 @@ typedef struct {
   };
 } OctvFlatFeature;
 
+typedef struct {
+  // CONFIG
+  uint8_t octv_version;
+  uint8_t num_audio_channels;
+  float audio_sample_rate;
+
+  // MOMENT
+  double audio_frame_index;
+
+  // TICK
+  uint8_t audio_channel;
+  float audio_sample;
+
+  // FEATURE
+  uint8_t detector_type;
+  uint16_t detector_index;
+
+  int8_t level_2_int8_0;
+  int8_t level_2_int8_1;
+  int16_t level_2_int16_0;
+} OctvFlatFeature_2;
+
+
 typedef int (*octv_parse_class0_cb_t)(OctvPayload * payload, void * user_data);
 
 typedef struct {

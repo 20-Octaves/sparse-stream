@@ -2,6 +2,9 @@ import sys, os
 import contextlib
 import struct
 import json
+import operator
+import collections
+import time
 
 from octv_cffi import ffi, lib
 
@@ -29,6 +32,17 @@ def octv_assert_invariants():
     assert lib.OCTV_FEATURE_0_UPPER == lib.OCTV_FEATURE_2_LOWER, str((hex(lib.OCTV_FEATURE_0_UPPER), hex(lib.OCTV_FEATURE_2_LOWER)))
     assert lib.OCTV_FEATURE_2_UPPER == lib.OCTV_FEATURE_3_LOWER, str((hex(lib.OCTV_FEATURE_2_UPPER), hex(lib.OCTV_FEATURE_3_LOWER)))
 
+
+# referents holds onto cdata objects until this module goes away, needed because pointers in cdata
+# structs don't hold onto the underlying cdata
+
+referents = list()
+def ffi_new(c_type, init=None):
+    referents.append(ffi.new(c_type, init))
+    return referents[-1]
+def ffi_new_handle(obj):
+    referents.append(ffi.new_handle(obj))
+    return referents[-1]
 
 @contextlib.contextmanager
 def open_file_c(filename, *, mode=os.O_RDONLY):
@@ -166,10 +180,12 @@ class OctvBase(object):
 
     @classmethod
     def dict_from(cls, obj_c):
-        res = dict()
-        for field in cls.fields:
-            res[field] = getattr(obj_c, field)
-        return res
+        return dict((field, getattr(obj_c, field)) for field in cls.fields)
+        if False:
+            res = dict()
+            for field in cls.fields:
+                res[field] = getattr(obj_c, field)
+            return res
 
     @property
     def as_dict(self):
@@ -414,16 +430,335 @@ def octv_terminal(cls):
         setattr(cls, attr_name, property(get_attr))
     return cls
 
-@octv_terminal
-class OctvFlatFeature(OctvBase):
-    struct_type = 'OctvFlatFeature *'
-    struct_fields = 'octv_version', 'num_audio_channels', 'audio_sample_rate_0', 'audio_sample_rate_1', 'audio_sample_rate_2', 'num_detectors', 'audio_frame_index_hi_bytes', 'audio_channel', 'audio_frame_index_lo_bytes', 'audio_sample', 'type', 'frame_offset', 'detector_index',
-    fields = struct_fields
+
+def proxy_fields(proxy_name, fields_name):
+    def octv_terminal(cls):
+        struct_name = cls.__name__
+        struct = ffi.new(struct_name + '*')
+        fields1 = tuple(dir(struct))
+        print(f'octv_terminal: cls: {cls}, struct_name: {struct_name}, struct: {struct}, fields1: {fields1}')
+        sys.stdout.flush()
+
+        for attr_name in getattr(cls, fields_name):
+            def get_attr(self, *, attr_name=attr_name):
+                return getattr(getattr(self, proxy_name), attr_name)
+            setattr(cls, attr_name, property(get_attr))
+        return cls
+    return octv_terminal
+
+octv_ffi_proxy = proxy_fields('self_c', 'fields')
+
+class OctvFlatBase(OctvBase):
 
     def __init__(self, obj_c):
-        # self_c is an instance of a C struct (cffi) and used for getting most attributes
-        self.self_c = ffi_new(self.struct_type, self.dict_from(obj_c))
+        # self_c is an instance of a C struct (cffi) and used as a proxy for getting most attributes
+        # struct pointer type is derived from cls name
+        self.self_c = ffi_new(f'{type(self).__name__} *', self.dict_from(obj_c))
+        #self.self_c = ffi_new(self.struct_type, self.dict_from(obj_c))
         debug and log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
+
+@octv_ffi_proxy
+class OctvFlatFeature(OctvFlatBase):
+    pass
+    #struct_type = 'OctvFlatFeature *'
+    fields = 'octv_version', 'num_audio_channels', 'audio_sample_rate_0', 'audio_sample_rate_1', 'audio_sample_rate_2', 'num_detectors', 'audio_frame_index_hi_bytes', 'audio_channel', 'audio_frame_index_lo_bytes', 'audio_sample', 'type', 'frame_offset', 'detector_index',
+
+
+
+
+if False:
+    @octv_ffi_proxy
+    class OctvFlatFeature_2(OctvFlatBase):
+        #struct_type = 'OctvFlatFeature_2 *'
+        fields = 'octv_version','num_audio_channels','audio_sample_rate','audio_frame_index','audio_channel','audio_sample','detector_index','level_2_int8_0','level_2_int8_1','level_2_int16_0',
+
+
+def octv_proxy(cls, *, proxy_name = 'self_c'):
+    slots = proxy_name,
+    setattr(cls, '__slots__', slots)
+    struct_name = cls.__name__
+    struct_fields = tuple(map(operator.itemgetter(0), ffi.typeof(struct_name).fields))
+    log(f'octv_proxy: struct_name: {struct_name}, struct_fields: {struct_fields}')
+    # TODO: 'struct_fields'
+    setattr(cls, 'fields', struct_fields)
+    # Note: at first we reverse engineered, before working hard on https://cffi.readthedocs.io/en/latest/ref.html#ffi-cdata-ffi-ctype
+    #struct_fields = dir(ffi.new(struct_name + '*'))
+
+    for attr_name in struct_fields:
+        setattr(cls, attr_name, property(operator.attrgetter(f'{proxy_name}.{attr_name}')))
+        def get_attr(self, *, attr_name=attr_name):
+            return getattr(getattr(self, proxy_name), attr_name)
+        #setattr(cls, attr_name, property(get_attr))
+    return cls
+
+    log(f'octv_proxy: struct_fields 0: {struct_fields}')
+    log(f'octv_proxy: ffi.new(struct_name + "*"): {ffi.new(struct_name + "*")}')
+    log(f'octv_proxy: type(ffi.new(struct_name + "*")): {type(ffi.new(struct_name + "*"))}')
+    log(f'octv_proxy: ffi.typeof(ffi.new(struct_name + "*")): {ffi.typeof(ffi.new(struct_name + "*"))}')
+    log(f'octv_proxy: ffi.typeof(struct_name + "*"): {ffi.typeof(struct_name + "*")}')
+    log(f'octv_proxy: dir(ffi.typeof(struct_name + "*")): {dir(ffi.typeof(struct_name + "*"))}')
+    log(f'octv_proxy: dir(ffi.typeof(struct_name)): {dir(ffi.typeof(struct_name))}')
+    x = ffi.typeof(struct_name)
+    #x = ffi.typeof(struct_name + "*")
+    for field in dir(x):
+        log(f'  {field}: {getattr(x,field)}')
+
+
+    log(f'octv_proxy: ffi.typeof(struct_name).fields: {ffi.typeof(struct_name).fields}')
+    fs = ffi.typeof(struct_name).fields
+    log(f'  {tuple(x[0] for x in fs)}')
+
+    if False:
+        log(f'octv_proxy: ffi.typeof(ffi.new(struct_name + "*")).fields: {ffi.typeof(ffi.new(struct_name + "*")).fields}')
+
+        log(f'octv_proxy: getattr(ffi.new(struct_name + "*")[0], "fields"): {getattr(ffi.new(struct_name + "*")[0], "fields")}')
+        log(f'octv_proxy: type(ffi.new(struct_name + "*")[0]): {type(ffi.new(struct_name + "*")[0])}')
+        sys.stdout.flush()
+
+        struct_fields = type(ffi.new(struct_name + '*')).fields
+        log(f'octv_proxy: struct_fields 1: {struct_fields}')
+
+        sys.stdout.flush()
+        1/0
+
+    print(f'octv_terminal: cls: {cls}, struct_name: {struct_name}, struct: {struct}, fields1: {fields1}')
+
+    for attr_name in getattr(cls, fields_name):
+        def get_attr(self, *, attr_name=attr_name):
+            return getattr(getattr(self, proxy_name), attr_name)
+        setattr(cls, attr_name, property(get_attr))
+    return cls
+
+
+class OctvProxy(object):
+    proxy_name = 'self_c'
+
+    @classmethod
+    def octv_proxy(cls0, cls):
+        setattr(cls, '__slots__', (cls0.proxy_name,))
+
+        struct_name = cls.__name__
+        struct_fields = tuple(map(operator.itemgetter(0), ffi.typeof(struct_name).fields))
+        log(f'octv_proxy: struct_name: {struct_name}, struct_fields: {struct_fields}')
+        setattr(cls, 'struct_fields', struct_fields)
+        # Note: at first we reverse engineered, before working hard on https://cffi.readthedocs.io/en/latest/ref.html#ffi-cdata-ffi-ctype
+        #struct_fields = dir(ffi.new(struct_name + '*'))
+
+        for attr_name in struct_fields:
+            setattr(cls, attr_name, property(operator.attrgetter(f'{cls0.proxy_name}.{attr_name}')))
+
+        return cls
+
+    @classmethod
+    def dict_from(cls, obj_c):
+        return dict((field, getattr(obj_c, field)) for field in cls.struct_fields)
+
+    def __init__(self, obj_c):
+        # self_c is an instance of a C struct (cffi) and used as a proxy for getting most attributes
+        # struct pointer type is derived from cls name
+        setattr(self, self.proxy_name, ffi_new(f'{type(self).__name__} *', self.dict_from(obj_c)))
+        #self.self_c = ffi_new(f'{type(self).__name__} *', self.dict_from(obj_c))
+        debug and log(f'{type(self).__name__}.__init__: obj_c: {obj_c}, self.self_c: {self.self_c}')
+
+
+
+def octv_proxy(cls, *, proxy_name = 'self_c'):
+    slots = proxy_name,
+    setattr(cls, '__slots__', slots)
+    struct_name = cls.__name__
+    struct_fields = tuple(map(operator.itemgetter(0), ffi.typeof(struct_name).fields))
+    log(f'octv_proxy: struct_name: {struct_name}, struct_fields: {struct_fields}')
+    # TODO: 'struct_fields'
+    setattr(cls, 'fields', struct_fields)
+    # Note: at first we reverse engineered, before working hard on https://cffi.readthedocs.io/en/latest/ref.html#ffi-cdata-ffi-ctype
+    #struct_fields = dir(ffi.new(struct_name + '*'))
+
+    for attr_name in struct_fields:
+        setattr(cls, attr_name, property(operator.attrgetter(f'{proxy_name}.{attr_name}')))
+        def get_attr(self, *, attr_name=attr_name):
+            return getattr(getattr(self, proxy_name), attr_name)
+        #setattr(cls, attr_name, property(get_attr))
+    return cls
+
+
+@OctvProxy.octv_proxy
+class OctvFlatFeature_2(OctvProxy):
+#@octv_proxy
+#class OctvFlatFeature_2(OctvFlatBase):
+    pass
+    #struct_type = 'OctvFlatFeature_2 *'
+    #fields = 'octv_version','num_audio_channels','audio_sample_rate','audio_frame_index','audio_channel','audio_sample','detector_index','level_2_int8_0','level_2_int8_1','level_2_int16_0',
+
+of_c = ffi.new('OctvFlatFeature_2 *')
+of_c.detector_type = 0x2f
+of_c.audio_sample = 23.25
+of = OctvFlatFeature_2(of_c)
+log(f'of: {of}, of.detector_type: {hex(of.detector_type)}')
+
+
+class foon(collections.namedtuple('foon', ('foo', 'bar'))):
+    def __new__(cls, *args):
+        log(f'foon.__new__: args: {args}')
+        return super().__new__(cls, 'def', 'xxx')
+    pass
+
+x = foon('xyz')
+log(f'x: {x}')
+
+def foobar(cls):
+    log(f'foobar: dir(cls): {dir(cls)}')
+    log(f'foobar: cls.__mro__: {cls.__mro__}')
+    log(f'foobar: cls.mro(): {cls.mro()}')
+
+    struct_name = cls.__name__
+    struct_fields = tuple(map(operator.itemgetter(0), ffi.typeof(struct_name).fields))
+    log(f'foobar: struct_name: {struct_name}, struct_fields: {struct_fields}')
+    baz = collections.namedtuple(struct_name, struct_fields)
+
+    def __new__(cls, obj_c):
+        log(f'{struct_name}.__new__: obj_c: {obj_c}')
+        #return super(baz).__new__(cls, struct_fields)
+        x = dict((value,key) for key,value in enumerate(struct_fields))
+        return baz.__new__(cls, **x)
+        #return super(baz, cls).__new__(cls, **x)
+        #return super(baz, cls).__new__(cls, struct_fields)
+        #return super(baz, me).__new__(cls, struct_fields)
+        #return super(baz, me).__new__(cls, *struct_fields)
+        #return super().__new__(cls, 'def', 'xxx')
+
+
+    class classY:
+        def hello(self):
+            log(f'ClassY.hello: self: {self}')
+            return 'yow'
+
+    #me = type(struct_name, (baz, classY), dict(__new__ = staticmethod(__new__)))
+    d = dict(cls.__dict__)
+    d.update(__new__ = staticmethod(__new__))
+    me = type(struct_name, (baz,) + cls.__bases__, d)
+    #me = type(struct_name, (baz,) + cls.__bases__, dict(__new__ = staticmethod(__new__)))
+    #me = type(struct_name, (baz, cls.__mro__[1]), dict(__new__ = staticmethod(__new__)))
+    #me = type(struct_name, (cls.__mro__[1], baz), dict(__new__ = staticmethod(__new__)))
+    #me = type(struct_name, (baz,) + cls.__mro__[1:2], dict(__new__ = staticmethod(__new__)))
+    #me = type(struct_name, (baz,), {})  # , **dict(__new__=__new__))
+
+
+    #setattr(baz, '__new__', __new__)
+
+    #setattr(me, '__new__', staticmethod(__new__))
+
+    return me
+
+class classX:
+    def hello(self):
+        log(f'ClassX.hello: self: {self}')
+        return 'zayow'
+
+log(f'classX().hello(): {classX().hello()}')
+
+@foobar
+class OctvFlatFeature_2:
+#class OctvFlatFeature_2(classX):
+    def hello(self):
+        log(f'ClassZZ.hello: self: {self}')
+        return 'zzzz'
+
+    pass
+
+#foobar(OctvFlatFeature_2)
+
+y = OctvFlatFeature_2(of_c)
+log(f'y.audio_sample: {repr(y.audio_sample)}')
+log(f'y: {y}')
+log(f'y.hello(): {y.hello()}')
+
+
+
+
+# base class for getting ffi struct values, used by octv_struct
+class OctvBase:
+    __slots__ = ()
+
+    @property
+    def _as_json(self):
+        # expects there to be a namedtuple in self's __mro__
+        return json.dumps(self._asdict())
+
+    def __str__(self):
+        return self._as_json
+
+    @ffi.def_extern()
+    @staticmethod
+    def octv_error_cb(error_code, payload, user_data_c):
+        # called from C when the parser has encountered an error
+        try:
+            log(f'OctvBase.octv_error_cb: error_code: {error_code} payload: {payload}, user_data_c: {user_data_c}')
+            send = ffi.from_handle(user_data_c) if user_data_c != ffi.NULL else None
+            # TODO: how to handle C errors, separate error_user_data_c, or attribute on send
+            return error_code
+        except Exception as error:
+            # secondary exception (from client's python code reached from send
+            # want to create a python exception that is raised once we're back in python land...
+            # e.g. via a new_handle attached to user_data
+            log(f'OctvBase.octv_error_cb: error: {type(error).__name__}: error: {error}')
+            return lib.OCTV_ERROR_CLIENT
+        finally:
+            # we're about to return into C code, so flush stdout
+            sys.stdout.flush()
+
+    @staticmethod
+    def send(terminal, user_data_c):
+        # TODO: user_data needs formal structure for send and for error
+        send = ffi.from_handle(user_data_c) if user_data_c != ffi.NULL else None
+        return send(terminal) if callable(send) else 0
+
+# class decorator
+# include a namedtuple (derived from the cls name, an ffi struct) in cls's bases
+def octv_struct(cls):
+    struct_name = cls.__name__
+    struct_fields = tuple(map(operator.itemgetter(0), ffi.typeof(struct_name).fields))
+    debug and log(f'octv_struct: struct_name: {struct_name}, struct_fields: {struct_fields}')
+
+    struct_tuple = collections.namedtuple(struct_name+'_namedtuple', struct_fields)
+
+    field_getters = tuple(operator.attrgetter(field) for field in struct_tuple._fields)
+
+    def __new__(cls, obj_c, *, field_getters=field_getters):
+        debug and log(f'octv_struct: {struct_name}.__new__: obj_c: {obj_c}')
+        return struct_tuple.__new__(cls, *(getter(obj_c) for getter in field_getters))
+
+    log(f'octv_struct: cls.__bases__: {cls.__bases__}')
+    #bases = (struct_tuple, ) + cls.__bases__
+    bases = (struct_tuple, OctvBase) + cls.__bases__
+    log(f'octv_struct: bases: {bases}')
+
+    class_dict = cls.__dict__.copy()
+    class_dict.pop('__dict__', None)
+    class_dict['__slots__'] = ()
+    class_dict['__new__'] = staticmethod(__new__)
+
+    return type(struct_name, bases, class_dict)
+
+@octv_struct
+#class OctvFlatFeature_2(OctvBase):
+class OctvFlatFeature_2:
+    __slots__ = ()
+    pass
+
+zz = OctvFlatFeature_2(of_c)
+log(f'zz.audio_sample: {repr(zz.audio_sample)}')
+log(f'zz: {zz}')
+#log(f'zz.hello(): {zz.hello()}')
+log(f'dir(zz): {dir(zz)}')
+log(f'zz._fields: {zz._fields}')
+log(f'zz._asdict(): {zz._asdict()}')
+log(f'zz._as_json: {zz._as_json}')
+
+log(f'dir(collections.namedtuple("footuple", ("foo", "bar", "baz"))): {dir(collections.namedtuple("footuple", ("foo", "bar", "baz")))}')
+
+sys.stdout.flush()
+time.sleep(0.0625)
+#1/0
 
 
 @ffi.def_extern()
@@ -898,17 +1233,6 @@ def octv_parse_class0(file_c, send):
     sys.stdout.flush()
     res = lib.octv_parse_class0(file_c, lib.octv_class_cb, ffi_new_handle(send))
     return res
-
-# referents holds onto cdata objects until this module goes away, needed because pointers in cdata
-# structs don't hold onto the underlying cdata
-
-referents = list()
-def ffi_new(c_type, init=None):
-    referents.append(ffi.new(c_type, init))
-    return referents[-1]
-def ffi_new_handle(obj):
-    referents.append(ffi.new_handle(obj))
-    return referents[-1]
 
 def new_parser():
     parser = ffi_new('OctvParseCallbacks *')

@@ -188,8 +188,8 @@ int feature_flat_cb(OctvFeature * feature, void * user_data) {
 
   return flat_feature_state->parse_flat_cbs->flat_feature_cb(&flat_feature, flat_feature_state->parse_flat_cbs->user_data);
 }
-static
 
+static
 int error_flat_cb(int error_code, OctvPayload * payload, void * user_data) {
   //OctvFlatFeatureState * flat_feature_state = user_data;
   return error_code;
