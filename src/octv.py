@@ -758,6 +758,7 @@ log(f'dir(collections.namedtuple("footuple", ("foo", "bar", "baz"))): {dir(colle
 
 sys.stdout.flush()
 time.sleep(0.0625)
+
 #1/0
 
 

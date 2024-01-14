@@ -229,22 +229,36 @@ typedef struct {
   // CONFIG
   uint8_t octv_version;
   uint8_t num_audio_channels;
-  float audio_sample_rate;
+  int audio_sample_rate;
 
   // MOMENT
-  double audio_frame_index;
+  int audio_frame_index;
 
   // TICK
   uint8_t audio_channel;
+  float frame_index_offset;
   float audio_sample;
 
   // FEATURE
-  uint8_t detector_type;
   uint16_t detector_index;
 
+  uint8_t detector_type;
+
+  // detector_type: range(OCTV_FEATURE_0_LOWER, OCTV_FEATURE_0_UPPER)
+  int8_t level_0_int8_0;
+  int8_t level_0_int8_1;
+  int8_t level_0_int8_2;
+  int8_t level_0_int8_3;
+
+  // detector_type: range(OCTV_FEATURE_2_LOWER, OCTV_FEATURE_2_UPPER)
   int8_t level_2_int8_0;
   int8_t level_2_int8_1;
   int16_t level_2_int16_0;
+
+  // detector_type: range(OCTV_FEATURE_3_LOWER, OCTV_FEATURE_3_UPPER)
+  int16_t level_3_int16_0;
+  int16_t level_3_int16_1;
+
 } OctvFlatFeature_2;
 
 
