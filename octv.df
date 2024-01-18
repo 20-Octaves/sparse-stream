@@ -25,6 +25,10 @@ ARG base=octv
 
 # build C-based shared library
 COPY src/octv.c src/octv.h ./
+# consider the cffi args to gcc:
+#   aarch64-linux-gnu-gcc -Wsign-compare -DNDEBUG -g -fwrapv -O2 -Wall -g -fstack-protector-strong -Wformat -Werror=format-security -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC -I/usr/include/python3.11 -c octv_cffi.c -o ./octv_cffi.o
+#   aarch64-linux-gnu-gcc -shared -Wl,-O1 -Wl,-Bsymbolic-functions -g -fwrapv -O2 -g -fwrapv -O2 -g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 ./octv_cffi.o -L. -loctv -o ./octv_cffi.cpython-311-aarch64-linux-gnu.so
+
 RUN true \
   && CC_ARGS="-I . -c -pipe -Werror -Wall -Wno-multichar -fpic  -march=native -Ofast" \
   && gcc ${CC_ARGS} ${base}.c \

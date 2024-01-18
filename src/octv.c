@@ -7,7 +7,7 @@
 #define OCTV_SENTINEL_CHARS  OCTV_SENTINEL_TYPE, 'c', 't', 'v'
 // "End "
 #define OCTV_END_CHARS  OCTV_END_TYPE, 'n', 'd', ' '
-// random, but not in -2 .. 2
+// random, but not in -2 ... 2
 #define OCTV_DELIMITER_SIGNATURE  0xa4, 0x6d, 0xae, 0xb6
 
 
@@ -22,26 +22,22 @@ static const OctvDelimiter octv_end = {  { OCTV_END_CHARS }, { OCTV_DELIMITER_SI
 
 // Fill in fixed fields
 static const OctvConfig octv_config = { OCTV_CONFIG_TYPE, OCTV_VERSION, 0 };
-static const OctvMoment octv_moment = { OCTV_MOMENT_TYPE, { 0 } };
+static const OctvMoment octv_moment = { OCTV_MOMENT_TYPE, { 0 }, 0 };
 static const OctvTick octv_tick = { OCTV_TICK_TYPE, 0 };
 
 
-// check OctvPayload.delimiter.chars for sentinel_chars
+// check OctvPayload.delimiter for sentinel values
 static
-int octv_check_sentinel_chars(const OctvDelimiter * delimiter) {
-  return delimiter->chars[0] == sentinel_chars[0] && delimiter->chars[1] == sentinel_chars[1] && delimiter->chars[2] == sentinel_chars[2] && delimiter->chars[3] == sentinel_chars[3];
-}
-// check OctvPayload.delimiter.chars for end_chars
-static
-int octv_check_end_chars(const OctvDelimiter * delimiter) {
-  return delimiter->chars[0] == end_chars[0] && delimiter->chars[1] == end_chars[1] && delimiter->chars[2] == end_chars[2] && delimiter->chars[3] == end_chars[3];
+int octv_check_sentinel(const OctvDelimiter * delimiter) {
+  return delimiter->chars[0] == sentinel_chars[0] && delimiter->chars[1] == sentinel_chars[1] && delimiter->chars[2] == sentinel_chars[2] && delimiter->chars[3] == sentinel_chars[3]
+    && delimiter->signature[0] == delimiter_signature[0] && delimiter->signature[1] == delimiter_signature[1] && delimiter->signature[2] == delimiter_signature[2] && delimiter->signature[3] == delimiter_signature[3];
 }
 
-// check OctvPayload.delimiter.signature
+// check OctvPayload.delimiter for end values
 static
-int octv_check_signature(const OctvDelimiter * delimiter) {
-  return delimiter->signature[0] == delimiter_signature[0] && delimiter->signature[1] == delimiter_signature[1] && delimiter->signature[2] == delimiter_signature[2] && delimiter->signature[3] == delimiter_signature[3];
-  //return delimiter->signature[0] == 0xa4 && delimiter->signature[1] == 0x6d && delimiter->signature[2] == 0xae && delimiter->signature[3] == 0xb6;
+int octv_check_end(const OctvDelimiter * delimiter) {
+  return delimiter->chars[0] == end_chars[0] && delimiter->chars[1] == end_chars[1] && delimiter->chars[2] == end_chars[2] && delimiter->chars[3] == end_chars[3]
+    && delimiter->signature[0] == delimiter_signature[0] && delimiter->signature[1] == delimiter_signature[1] && delimiter->signature[2] == delimiter_signature[2] && delimiter->signature[3] == delimiter_signature[3];
 }
 
 
@@ -63,7 +59,6 @@ int octv_parse_class(FILE * file, const OctvParseClass * parse_class_cbs) {
 
   while( 1 ) {
     OctvPayload payload;
-    //char * chars;
 
     const int num_items = fread(&payload, sizeof(payload), 1, file);
     if( num_items != 1 ) {
@@ -83,9 +78,7 @@ int octv_parse_class(FILE * file, const OctvParseClass * parse_class_cbs) {
       break;
 
     case OCTV_END_TYPE:
-      //chars = payload.delimiter.chars;
-      if( octv_check_end_chars(&payload.delimiter) && octv_check_signature(&payload.delimiter) ) {
-        //if( chars[0] == 'n' && chars[1] == 'd' && chars[2] == ' ' && octv_check_signature(&payload.delimiter) ) {
+      if( octv_check_end(&payload.delimiter) ) {
         // always return on valid OCTV_END_TYPE
         return parse_class_cbs != NULL && parse_class_cbs->end_cb != NULL
           ? parse_class_cbs->end_cb(&payload.delimiter, parse_class_cbs->user_data)
@@ -97,9 +90,7 @@ int octv_parse_class(FILE * file, const OctvParseClass * parse_class_cbs) {
       break;
 
     case OCTV_SENTINEL_TYPE:
-      //chars = payload.delimiter.chars;
-      if( octv_check_sentinel_chars(&payload.delimiter) && octv_check_signature(&payload.delimiter) ) {
-        //if( chars[0] == 'c' && chars[1] == 't' && chars[2] == 'v' && octv_check_signature(&payload.delimiter) ) {
+      if( octv_check_sentinel(&payload.delimiter) ) {
         if( parse_class_cbs != NULL && parse_class_cbs->sentinel_cb != NULL ) {
           code = parse_class_cbs->sentinel_cb(&payload.delimiter, parse_class_cbs->user_data);
         }
@@ -118,6 +109,12 @@ int octv_parse_class(FILE * file, const OctvParseClass * parse_class_cbs) {
       }
       else {
         code = octv_error(OCTV_ERROR_VALUE, &payload, parse_class_cbs);
+      }
+      break;
+
+    case OCTV_CONFIG_FEATURE_TYPE:
+      if( parse_class_cbs != NULL && parse_class_cbs->config_feature_cb != NULL ) {
+        code = parse_class_cbs->config_feature_cb(&payload.config_feature, parse_class_cbs->user_data);
       }
       break;
 
@@ -150,26 +147,32 @@ int octv_parse_class(FILE * file, const OctvParseClass * parse_class_cbs) {
 // TODO: check on state machine transitions
 static
 int config_flat_cb(OctvConfig * config, void * user_data) {
-  OctvFlatFeatureState * flat_feature_state = user_data;
+  OctvParseFlatState * flat_feature_state = user_data;
   *flat_feature_state->config = *config;
   return 0;
 }
 static
+int config_feature_flat_cb(OctvConfigFeature * config_feature, void * user_data) {
+  OctvParseFlatState * flat_feature_state = user_data;
+  *flat_feature_state->config_feature = *config_feature;
+  return 0;
+}
+static
 int moment_flat_cb(OctvMoment * moment, void * user_data) {
-  OctvFlatFeatureState * flat_feature_state = user_data;
+  OctvParseFlatState * flat_feature_state = user_data;
   *flat_feature_state->moment = *moment;
   return 0;
 }
 static
 int tick_flat_cb(OctvTick * tick, void * user_data) {
-  OctvFlatFeatureState * flat_feature_state = user_data;
+  OctvParseFlatState * flat_feature_state = user_data;
   *flat_feature_state->tick = *tick;
   return 0;
 }
 
 static
 int feature_flat_cb(OctvFeature * feature, void * user_data) {
-  OctvFlatFeatureState * flat_feature_state = user_data;
+  OctvParseFlatState * flat_feature_state = user_data;
   *flat_feature_state->feature = *feature;
 
   // build the flat_feature
@@ -177,36 +180,87 @@ int feature_flat_cb(OctvFeature * feature, void * user_data) {
     // CONFIG
     .octv_version = flat_feature_state->config->octv_version,
     .num_audio_channels = flat_feature_state->config->num_audio_channels,
-    .audio_sample_rate = -1,
+    .audio_sample_rate = flat_feature_state->config->audio_sample_rate,
+
     /*
-    .audio_sample_rate_0 = flat_feature_state->config->audio_sample_rate_0,
-    .audio_sample_rate_1 = flat_feature_state->config->audio_sample_rate_1,
-    .audio_sample_rate_2 = flat_feature_state->config->audio_sample_rate_2,
+    .max_num_detectors = flat_feature_state->config->max_num_detectors,
+    .max_abs_level_int8 = 63,
+    .max_abs_level_int16 = 3360,
     */
+
     /*
-    .num_detectors = flat_feature_state->config->num_detectors,
-    .max_level = 63,
-    .min_level = -63,
+    .min_level_int8 = -63,
+    .min_level_int16 = -63,
     */
     // MOMENT + TICK
-    .audio_frame_index = -1,
-    //.audio_frame_index_hi_bytes = flat_feature_state->moment->audio_frame_index_hi_bytes,
+    .audio_frame_index = (flat_feature_state->moment->audio_frame_index_hi_bytes << 16) | flat_feature_state->tick->audio_frame_index_lo_bytes,
     // TICK + FEATURE
     .audio_channel = flat_feature_state->tick->audio_channel,
-    .frame_index_offset = (float)flat_feature_state->feature->frame_offset * 1.0f,  // config-based recip
-    //.audio_frame_index_lo_bytes = flat_feature_state->tick->audio_frame_index_lo_bytes,
+    .audio_frame_index_offset = (float)flat_feature_state->feature->frame_offset * 1.0f,  // config-based recip
     .audio_sample = flat_feature_state->tick->audio_sample,
     // FEATURE
     .detector_type = flat_feature_state->feature->type,
     .detector_index = flat_feature_state->feature->detector_index,
   };
 
+  switch (flat_feature_state->feature->type) {
+  default:
+    // should never happen due to earlier checks
+    return OCTV_ERROR_OCTV;
+    break;
+
+  // detector_type in half-open range(OCTV_FEATURE_0_LOWER, OCTV_FEATURE_0_UPPER)
+  case OCTV_FEATURE_0_LOWER ... (OCTV_FEATURE_0_UPPER - 1):
+    flat_feature.level_0_int8_0 = flat_feature_state->feature->level_0_int8_0;
+    flat_feature.level_0_int8_1 = flat_feature_state->feature->level_0_int8_1;
+    flat_feature.level_0_int8_2 = flat_feature_state->feature->level_0_int8_2;
+    flat_feature.level_0_int8_3 = flat_feature_state->feature->level_0_int8_3;
+
+    flat_feature.level_2_int8_0 = 0;
+    flat_feature.level_2_int8_1 = 0;
+    flat_feature.level_2_int16_0 = 0;
+
+    flat_feature.level_3_int16_0 = 0;
+    flat_feature.level_3_int16_1 = 0;
+    break;
+
+  // detector_type in half-open range(OCTV_FEATURE_2_LOWER, OCTV_FEATURE_2_UPPER)
+  case OCTV_FEATURE_2_LOWER ... (OCTV_FEATURE_2_UPPER - 1):
+    flat_feature.level_0_int8_0 = 0;
+    flat_feature.level_0_int8_1 = 0;
+    flat_feature.level_0_int8_2 = 0;
+    flat_feature.level_0_int8_3 = 0;
+
+    flat_feature.level_2_int8_0 = flat_feature_state->feature->level_2_int8_0;
+    flat_feature.level_2_int8_1 = flat_feature_state->feature->level_2_int8_1;
+    flat_feature.level_2_int16_0 = flat_feature_state->feature->level_2_int16_0;
+
+    flat_feature.level_3_int16_0 = 0;
+    flat_feature.level_3_int16_1 = 0;
+    break;
+
+  // detector_type in half-open range(OCTV_FEATURE_3_LOWER, OCTV_FEATURE_3_UPPER)
+  case OCTV_FEATURE_3_LOWER ... (OCTV_FEATURE_3_UPPER - 1):
+    flat_feature.level_0_int8_0 = 0;
+    flat_feature.level_0_int8_1 = 0;
+    flat_feature.level_0_int8_2 = 0;
+    flat_feature.level_0_int8_3 = 0;
+
+    flat_feature.level_2_int8_0 = 0;
+    flat_feature.level_2_int8_1 = 0;
+    flat_feature.level_2_int16_0 = 0;
+
+    flat_feature.level_3_int16_0 = flat_feature_state->feature->level_3_int16_0;
+    flat_feature.level_3_int16_1 = flat_feature_state->feature->level_3_int16_1;
+    break;
+  }
+
   return flat_feature_state->parse_flat_cbs->flat_feature_cb(&flat_feature, flat_feature_state->parse_flat_cbs->user_data);
 }
 
 static
 int error_flat_cb(int error_code, OctvPayload * payload, void * user_data) {
-  //OctvFlatFeatureState * flat_feature_state = user_data;
+  //OctvParseFlatState * flat_feature_state = user_data;
   return error_code;
 }
 
@@ -224,7 +278,7 @@ int octv_parse_flat(FILE * file, const OctvParseFlat * parse_flat_cbs) {
   OctvMoment moment;
   OctvTick tick;
   OctvFeature feature;
-  OctvFlatFeatureState flat_feature_state = {
+  OctvParseFlatState flat_feature_state = {
     .config = &config,
     .moment = &moment,
     .tick = &tick,
@@ -237,6 +291,7 @@ int octv_parse_flat(FILE * file, const OctvParseFlat * parse_flat_cbs) {
     .sentinel_cb = NULL,
     .end_cb = NULL,
     .config_cb = config_flat_cb,
+    .config_feature_cb = config_feature_flat_cb,
     .moment_cb = moment_flat_cb,
     .tick_cb = tick_flat_cb,
     .feature_cb = feature_flat_cb,
