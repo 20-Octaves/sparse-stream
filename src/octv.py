@@ -581,19 +581,20 @@ def octv_proxy(cls, *, proxy_name = 'self_c'):
     return cls
 
 
-@OctvProxy.octv_proxy
-class OctvFlatFeature_2(OctvProxy):
-#@octv_proxy
-#class OctvFlatFeature_2(OctvFlatBase):
-    pass
-    #struct_type = 'OctvFlatFeature_2 *'
-    #fields = 'octv_version','num_audio_channels','audio_sample_rate','audio_frame_index','audio_channel','audio_sample','detector_index','level_2_int8_0','level_2_int8_1','level_2_int16_0',
+if False:
+    @OctvProxy.octv_proxy
+    class OctvFlatFeature_2(OctvProxy):
+    #@octv_proxy
+    #class OctvFlatFeature_2(OctvFlatBase):
+        pass
+        #struct_type = 'OctvFlatFeature_2 *'
+        #fields = 'octv_version','num_audio_channels','audio_sample_rate','audio_frame_index','audio_channel','audio_sample','detector_index','level_2_int8_0','level_2_int8_1','level_2_int16_0',
 
-of_c = ffi.new('OctvFlatFeature_2 *')
-of_c.detector_type = 0x2f
-of_c.audio_sample = 23.25
-of = OctvFlatFeature_2(of_c)
-log(f'of: {of}, of.detector_type: {hex(of.detector_type)}')
+    of_c = ffi.new('OctvFlatFeature_2 *')
+    of_c.detector_type = 0x2f
+    of_c.audio_sample = 23.25
+    of = OctvFlatFeature_2(of_c)
+    log(f'of: {of}, of.detector_type: {hex(of.detector_type)}')
 
 
 class foon(collections.namedtuple('foon', ('foo', 'bar'))):
@@ -656,21 +657,22 @@ class classX:
 
 log(f'classX().hello(): {classX().hello()}')
 
-@foobar
-class OctvFlatFeature_2:
-#class OctvFlatFeature_2(classX):
-    def hello(self):
-        log(f'ClassZZ.hello: self: {self}')
-        return 'zzzz'
+if False:
+    @foobar
+    class OctvFlatFeature_2:
+    #class OctvFlatFeature_2(classX):
+        def hello(self):
+            log(f'ClassZZ.hello: self: {self}')
+            return 'zzzz'
 
-    pass
+        pass
 
-#foobar(OctvFlatFeature_2)
+    #foobar(OctvFlatFeature_2)
 
-y = OctvFlatFeature_2(of_c)
-log(f'y.audio_sample: {repr(y.audio_sample)}')
-log(f'y: {y}')
-log(f'y.hello(): {y.hello()}')
+    y = OctvFlatFeature_2(of_c)
+    log(f'y.audio_sample: {repr(y.audio_sample)}')
+    log(f'y: {y}')
+    log(f'y.hello(): {y.hello()}')
 
 
 
@@ -739,20 +741,21 @@ def octv_struct(cls):
 
     return type(struct_name, bases, class_dict)
 
-@octv_struct
-#class OctvFlatFeature_2(OctvBase):
-class OctvFlatFeature_2:
-    __slots__ = ()
-    pass
+if False:
+    @octv_struct
+    #class OctvFlatFeature_2(OctvBase):
+    class OctvFlatFeature_2:
+        __slots__ = ()
+        pass
 
-zz = OctvFlatFeature_2(of_c)
-log(f'zz.audio_sample: {repr(zz.audio_sample)}')
-log(f'zz: {zz}')
-#log(f'zz.hello(): {zz.hello()}')
-log(f'dir(zz): {dir(zz)}')
-log(f'zz._fields: {zz._fields}')
-log(f'zz._asdict(): {zz._asdict()}')
-log(f'zz._as_json: {zz._as_json}')
+    zz = OctvFlatFeature_2(of_c)
+    log(f'zz.audio_sample: {repr(zz.audio_sample)}')
+    log(f'zz: {zz}')
+    #log(f'zz.hello(): {zz.hello()}')
+    log(f'dir(zz): {dir(zz)}')
+    log(f'zz._fields: {zz._fields}')
+    log(f'zz._asdict(): {zz._asdict()}')
+    log(f'zz._as_json: {zz._as_json}')
 
 log(f'dir(collections.namedtuple("footuple", ("foo", "bar", "baz"))): {dir(collections.namedtuple("footuple", ("foo", "bar", "baz")))}')
 
