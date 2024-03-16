@@ -1233,28 +1233,29 @@ def octv_parse_flat(file_c, send):
 
     return res
 
-def octv_parse_class0(file_c, send):
-    sys.stdout.flush()
-    res = lib.octv_parse_class0(file_c, lib.octv_class_cb, ffi_new_handle(send))
-    return res
+if False:
+    def octv_parse_class0(file_c, send):
+        sys.stdout.flush()
+        res = lib.octv_parse_class0(file_c, lib.octv_class_cb, ffi_new_handle(send))
+        return res
 
-def new_parser():
-    parser = ffi_new('OctvParseCallbacks *')
+    def new_parser():
+        parser = ffi_new('OctvParseCallbacks *')
 
-    parser.sentinel_cb = lib.octv_sentinelX_cb
-    parser.end_cb = lib.octv_endX_cb
-    parser.config_cb = lib.octv_configX_cb
-    parser.moment_cb = lib.octv_momentX_cb
-    parser.tick_cb = lib.octv_tickX_cb
-    parser.feature_cb = lib.octv_featureX_cb
+        parser.sentinel_cb = lib.octv_sentinelX_cb
+        parser.end_cb = lib.octv_endX_cb
+        parser.config_cb = lib.octv_configX_cb
+        parser.moment_cb = lib.octv_momentX_cb
+        parser.tick_cb = lib.octv_tickX_cb
+        parser.feature_cb = lib.octv_featureX_cb
 
-    parser.error_cb = lib.octv_errorX_cb
+        parser.error_cb = lib.octv_errorX_cb
 
-    return parser
+        return parser
 
-def octv_parse_full(file_c, parser):
-    log(f'octv_parse_full: file_c: {file_c}, parser: {parser}')
-    sys.stdout.flush()
-    res = lib.octv_parse_full(file_c, parser)
+    def octv_parse_full(file_c, parser):
+        log(f'octv_parse_full: file_c: {file_c}, parser: {parser}')
+        sys.stdout.flush()
+        res = lib.octv_parse_full(file_c, parser)
 
-    return res
+        return res

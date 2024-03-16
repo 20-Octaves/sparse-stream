@@ -55,52 +55,56 @@ def octv_test(args):
     print(f'label: ffi.sizeof("OctvPayload"): {ffi.sizeof("OctvPayload")}')
 
     print()
-    print(f'label: ffi.sizeof("OctvFlatFeatureState"): {ffi.sizeof("OctvFlatFeatureState")}')
+    print(f'label: ffi.sizeof("OctvParseFlatState"): {ffi.sizeof("OctvParseFlatState")}')
     print(f'label: ffi.sizeof("OctvFlatFeature"): {ffi.sizeof("OctvFlatFeature")}')
-    print()
-    print(f'label: ffi.sizeof("OctvParseCallbacks"): {ffi.sizeof("OctvParseCallbacks")}')
 
     print()
 
-    parser = octv.new_parser()
+    if False:
+        parser = octv.new_parser()
 
-    print(f'octv_test: parser: {parser}')
+        print(f'octv_test: parser: {parser}')
 
-    with octv.open_file_c('octv_test.py') as file_c:
-        print(f'octv_test: octv_parse_file(): {octv.octv_parse_full(file_c, parser)}')
+        with octv.open_file_c('octv_test.py') as file_c:
+            print(f'octv_test: octv_parse_file(): {octv.octv_parse_full(file_c, parser)}')
+
+
+        def send_obj(obj):
+            log(f'send_obj: obj: {obj} : {("type: " + hex(obj.type)) if hasattr(obj, "type") else ""}')
+            return 0
+
+        with octv.open_file_c('test2.octv') as file_c:
+            res = octv.octv_parse_class0(file_c, send_obj)
+
+        with octv.open_file_c('test1.octv') as file_c:
+            res = octv.octv_parse_class0(file_c, send_obj)
+
+
+        # called with each full feature
+        def flat_feature_cb(feature):
+            log(f'flat_feature_cb: feature: {feature}')
+            feature_o = octv.flat_feature_object(feature)
+            log(f'flat_feature_cb: feature_o: {feature_o}')
+
+            return 0
+
+        with octv.open_file_c('octv_test.py') as file_c:
+            print(f'octv_test: octv_parse_flat0(): {octv.parse_flat0(file_c, flat_feature_cb)}')
+
+
+        with octv.open_file_c('test1.octv') as file_c:
+            while True:
+                res = octv.octv_parse_full(file_c, parser)
+                print(f'octv_test: octv_parse_full(): {res}')
+                if res != 0: break
+
+
+    print()
 
 
     def send_obj(obj):
         log(f'send_obj: obj: {obj} : {("type: " + hex(obj.type)) if hasattr(obj, "type") else ""}')
         return 0
-
-    with octv.open_file_c('test2.octv') as file_c:
-        res = octv.octv_parse_class0(file_c, send_obj)
-
-    with octv.open_file_c('test1.octv') as file_c:
-        res = octv.octv_parse_class0(file_c, send_obj)
-
-
-    # called with each full feature
-    def flat_feature_cb(feature):
-        log(f'flat_feature_cb: feature: {feature}')
-        feature_o = octv.flat_feature_object(feature)
-        log(f'flat_feature_cb: feature_o: {feature_o}')
-
-        return 0
-
-    with octv.open_file_c('octv_test.py') as file_c:
-        print(f'octv_test: octv_parse_flat0(): {octv.parse_flat0(file_c, flat_feature_cb)}')
-
-
-    with octv.open_file_c('test1.octv') as file_c:
-        while True:
-            res = octv.octv_parse_full(file_c, parser)
-            print(f'octv_test: octv_parse_full(): {res}')
-            if res != 0: break
-
-
-    print()
 
     # Exercise octv_parse_class()
 
